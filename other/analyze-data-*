@@ -1,0 +1,66 @@
+<template id="template">
+<div>
+    <form id="{{form}}" name="{{form}}" data-event="submit">
+        <div data-template="contols">
+            {{#controls}}
+            {{#isInput}}
+                <div>
+                    <div class="mb-3" >
+                        <label for="{{name}}" class="form-label">{{display}}</label>
+                        <input type="{{type}}" required placeholder="{{placeholder}}" min="1" multiple class="form-control input" id="{{name}}" name="{{name}}">
+                    </div>
+                </div>
+            {{/isInput}}
+            {{#isText}}
+                <div>
+                    <div class="mb-3" >
+                        <label for="{{name}}" class="form-label">{{display}}</label>
+                        <textarea type="{{type}}" placeholder="{{placeholder}}" min="1" class="form-control input" id="{{name}}" name="{{name}}" value="{{value}}"></textarea>
+                    </div>
+                </div>
+                {{/isText}}
+            {{/controls}}
+        </div>
+    </form>
+</div>
+</template>
+    
+ types of reactive 
+ 	- attribute
+ 		- ex. 
+ 			1. data-bind - for value or bind
+ 			2. data-attr - attributes such as, readonly, disabled, and other boolean attributes
+ 			3. data-class - className attributes
+ 			4. data-toggle - for toggling grouped ui, such as tabs, sidebar item, navbar item, burger
+ 			5. data-route - for replacing the href by name from the list of routes, on render
+ 	- html structure
+ 		- ex. data-for, data-switch
+ 		- will rerender, with the help of mustache
+ 		- will replaced with data-template
+ 	- data update
+ 		- ex. 
+ 			1. data-model
+ 				- topic the data inputed from form controls
+ 				- publisher form control input or change event
+ 				- subscriber components listening to the publisher
+	- html event
+		- ex.
+			1. data-event
+				- adding event to element
+    			
+    			
+    			
+ - the component when using templating will rerender in order to reflect the data;  
+ - parse template, to look for data-template
+ - data-template means that the template will going to render later.
+ - it the data is ready, then there should be a function to inject it in the current render component
+ - the attributes will be the following
+ 	- data-bind
+ 	- data-attr
+ 	- data-class
+ 	- data-for
+ 	- data-if
+ 	- data-model
+ 	- data-toggle
+ 	- data-route
+ 	

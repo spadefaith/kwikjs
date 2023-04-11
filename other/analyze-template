@@ -1,0 +1,14 @@
+template
+1. clone the template and store to this.html 
+2. parse the template
+	- analyze the template and storing the meta in the memory
+	- changing the data-* with a uuid selector
+	- create a copy of the template as the original copy
+		- this copy should be not updated it will be used in the next render
+		
+		first parsing
+			-> template -> this.html -> store meta -> this.original
+		next parsing
+			-> this.original -> this.html
+			
+

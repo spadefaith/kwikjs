@@ -1,0 +1,44 @@
+            try {
+                new App();
+
+                Modal.create({
+                    root: ".root",
+                    handlers() {
+                        return {
+                            async click() {
+                                return "from modal";
+                                // this.render();
+                            },
+                        };
+                    },
+                    subscribe() {
+                        return {};
+                    },
+                });
+
+                Button.create({
+                    root: ".root",
+                    handlers() {
+                        return {
+                            async destory() {
+                                this.render();
+                            },
+                            click() {
+                                Modal.observer.handlers.click();
+                            },
+                        };
+                    },
+                    subscribe() {
+                        return {
+                            Modal: {
+                                async click(e) {
+                                    console.log(e);
+                                    await this.handlers.destory();
+                                },
+                            },
+                        };
+                    },
+                });
+            } catch (err) {
+                console.log(err);
+            }

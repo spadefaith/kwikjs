@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Document</title>
+    </head>
+    <body>
+        <template id="template">
+            <div>
+                <form id="{{form}}" name="{{form}}" data-event="submit">
+                    <div data-template="contols">
+                        {{#controls}} {{#isInput}}
+                        <div data-case="input-required">
+                            <div class="mb-3">
+                                <label for="{{name}}" class="form-label"
+                                    >{{display}}</label
+                                >
+                                <input
+                                    type="{{type}}"
+                                    required
+                                    placeholder="{{placeholder}}"
+                                    min="1"
+                                    multiple
+                                    class="form-control input"
+                                    id="{{name}}"
+                                    name="{{name}}"
+                                />
+                            </div>
+                        </div>
+                        {{/isInput}} {{#isInputRequired}}
+                        <div data-case="input-required">
+                            <div class="mb-3">
+                                <label for="{{name}}" class="form-label"
+                                    >{{display}}</label
+                                >
+                                <input
+                                    type="{{type}}"
+                                    required
+                                    placeholder="{{placeholder}}"
+                                    min="1"
+                                    multiple
+                                    class="form-control input"
+                                    id="{{name}}"
+                                    name="{{name}}"
+                                />
+                            </div>
+                        </div>
+                        {{/isInputRequired}} {{#isText}}
+                        <div data-case="textarea">
+                            <div class="mb-3">
+                                <label for="{{name}}" class="form-label"
+                                    >{{display}}</label
+                                >
+                                <textarea
+                                    type="{{type}}"
+                                    placeholder="{{placeholder}}"
+                                    min="1"
+                                    class="form-control input"
+                                    id="{{name}}"
+                                    name="{{name}}"
+                                    value="{{value}}"
+                                ></textarea>
+                            </div>
+                        </div>
+                        {{/isText}} {{/controls}}
+                    </div>
+                </form>
+            </div>
+        </template>
+
+        <!-- <script src="./ejs.js"></script> -->
+        <script src="./mustache.js"></script>
+        <script>
+            let template = document.getElementById("template");
+            let cloned = template.content.cloneNode(true);
+            let txt = "";
+
+            function htmlDecode(input) {
+                var e = document.createElement("textarea");
+                e.innerHTML = input;
+                // handle case of empty input
+                return e.childNodes.length === 0
+                    ? ""
+                    : e.childNodes[0].nodeValue;
+            }
+
+            [...cloned.childNodes].forEach((item) => {
+                let el = item.outerHTML || item.data;
+                txt += el;
+            });
+
+            txt = htmlDecode(txt);
+
+            let compile = Mustache.render(txt.trim(), {
+                controls: [
+                    {
+                        isInput: true,
+                        name: "test1",
+                        placeholder: "test1",
+                        type: "text",
+                        value: 1,
+                    },
+                    {
+                        isText: true,
+                        name: "test1",
+                        placeholder: "test1",
+                        type: "text",
+                        value: 1,
+                    },
+                    {
+                        isInput: true,
+                        name: "test1",
+                        placeholder: "test1",
+                        type: "text",
+                        value: 1,
+                    },
+                ],
+            });
+
+            console.log(compile);
+        </script>
+    </body>
+</html>

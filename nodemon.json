@@ -1,0 +1,8 @@
+{
+    "watch": ["./src/*"],
+    "ext": "js html css json sh",
+    "ignore": ["./src/bundle.js"],
+    "events": {
+        "restart": "node src/build.js"
+    }
+}
