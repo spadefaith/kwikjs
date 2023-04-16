@@ -52,25 +52,41 @@ function getElementsByDataset() {
     return o;
 }
 
-function applyCss(elements, styles) {
-    Utils.array.each(elements, function (element, index) {
-        Utils.array.each(styles, function (css, index) {
-            let { key, value } = css;
-            if (Utils.is.isObject(value)) {
-                let selector = key;
-                let elCss = value;
-                Utils.array.each(elCss, function (css, index) {
-                    let { key, value } = css;
-                    let target = Utils.element.querySelectorIncluded(
-                        element,
-                        selector
-                    );
+function applyCss(element, styles) {
+    /**
+     * styles = {
+     *      color:red
+     * }
+     * 
+     * or
+     * 
+     * styles = {
+     *      .nav-item:{
+     *          color:red
+     *      }
+     * }
+     * 
+     */
+    Utils.array.each(styles, function (css, index) {
+        let { key, value } = css;
+        if (Utils.is.isObject(value)) {
+            let selector = key;
+            let elCss = value;
+            Utils.array.each(elCss, function (css, index) {
+                let { key, value } = css;
+                let target = Utils.element.querySelectorIncluded(
+                    element,
+                    selector
+                );
+
+                if(target){
                     target.style[key] = value;
-                });
-            } else {
-                element.style[key] = value;
-            }
-        });
+                }
+
+            });
+        } else {
+            element.style[key] = value;
+        }
     });
 }
 
@@ -133,7 +149,7 @@ export default class Piece {
         return Utils.element.toArray(this.el.getElementsByTagName("*"));
     }
     css(obj) {
-        return applyCss(obj);
+        return applyCss(this.el, obj);
     }
     appendTo(roots, cleaned, callback) {
         return appendTo(roots, this.el, cleaned, callback);

@@ -397,10 +397,13 @@ function classNameTogglerByDataName(elements, dataName, activeClass) {
   }
 }
 function replaceDataSrc(root) {
+  if (!root) {
+    throw new Error("data-src is not found");
+  }
   let srcs = querySelectorAllIncluded(root, "data-src", null);
   for (let s = 0; s < srcs.length; s++) {
     let el = srcs[s];
-    if (el.dataset.src) {
+    if (el && el.dataset.src) {
       el.setAttribute("src", el.dataset.src);
       el.removeAttribute("data-src");
     }
@@ -474,32 +477,32 @@ function Object_default(name) {
 }
 
 // src/MemCache/Element.js
-function Element_default(name) {
-  let storage2 = document.querySelector(`[data-cache=${name}]`);
-  if (!storage2) {
-    let el = document.createElement("div");
-    el.dataset.cache = name;
-    document.head.append(el);
-    storage2 = el;
-  }
-  let key = "_cakes_storage";
-  !storage2[key] && (storage2[key] = {});
-  let cache = storage2[key];
-  return {
-    set(key2, value) {
-      cache[key2] = value;
-    },
-    get(key2) {
-      return cache[key2];
-    },
-    getAll() {
-      return cache;
-    },
-    remove(key2) {
-      delete cache[key2];
+var Element_default = class {
+  constructor(el) {
+    this.el = el;
+    if (!this.el) {
+      this.el = document.createElement("div");
+      el.dataset.cache = true;
+      document.head.append(el);
     }
-  };
-}
+    if (!this.el.__storage) {
+      this.el.__storage = {};
+    }
+  }
+  set(key, value) {
+    this.el.__storage[key] = value;
+  }
+  get(key) {
+    return key == void 0 ? this.el.__storage : this.el.__storage[key];
+  }
+  remove(key) {
+    if (key == void 0) {
+      this.el.__storage = {};
+    } else {
+      delete this.el.__storage[key];
+    }
+  }
+};
 
 // src/MemCache/index.js
 var MemCache_default = {
@@ -704,37 +707,40 @@ function _parseStyle(style) {
   if (!styles.length) {
     return;
   }
-  let obj = {};
-  let splitted = styles.split("}");
-  for (let sp = 0; sp < splitted.length; sp++) {
-    let item = splitted[sp];
-    let _sp1 = item.split("{");
-    let sel = _sp1[0];
-    let style2 = _sp1[1];
-    if (sel) {
-      obj[sel.trim()] = (() => {
-        let n = false;
-        let s = "";
-        let splitted2 = style2.split("");
-        for (let sp2 = 0; sp2 < splitted2.length; sp2++) {
-          let item2 = splitted2[sp2];
-          if (item2 == "\n") {
-            n = true;
-          } else if (item2 == " ") {
-            if (n) {
-            } else {
-              s += item2;
-            }
-          } else {
-            n = false;
-            s += item2;
-          }
+  let regexp = "((\\s*?@media[\\s\\S]*?){([\\s\\S]*?)}\\s*?})|(([\\s\\S]*?){([\\s\\S]*?)})";
+  let regexp1 = "([\\s\\S]*?){([\\s\\S]*?)}";
+  let parsed = styles.matchAll(regexp);
+  let props = {
+    __x__other: {},
+    __x__append: ""
+  };
+  for (let i of parsed) {
+    let [a, b, c, d, e, f] = i;
+    if (a.includes("@keyframes")) {
+      props.__x__append += a;
+    } else if (a.includes("@media")) {
+      props.__x__append += `${a} }`;
+    } else {
+      let _parsed = a.matchAll(regexp1);
+      for (let i2 of _parsed) {
+        let [a2, b2, c2] = i2;
+        b2 = b2.trim();
+        let cTrim = c2.replace(/\n/g, "").trim();
+        if (!props[b2]) {
+          props[b2] = cTrim;
+        } else {
+          props[b2] += cTrim;
         }
-        return s;
-      })();
+        if (b2.slice(1).includes(".")) {
+          if (!props.__x__other[b2]) {
+            props.__x__other[b2] = "";
+          }
+          props.__x__other[b2] += a2;
+        }
+      }
     }
   }
-  return obj;
+  return props;
 }
 function _parseHTML(others) {
   if (others) {
@@ -752,18 +758,38 @@ function getContent(template, isConvert) {
   let others = _collectedContent.others;
   let styles = _parseStyle(style);
   let element = _parseHTML(others);
+  let sOther = styles.__x__other || {};
+  delete styles.__x__other;
+  let s = "";
   for (let selector in styles) {
     if (Object.prototype.hasOwnProperty.call(styles, selector)) {
-      let query = element.querySelectorAll(selector);
       let css = styles[selector];
-      for (let q = 0; q < query.length; q++) {
-        let item = query[q];
-        item.setAttribute("style", css);
+      let query = element.querySelectorAll(selector);
+      if (query.length) {
+        for (let q = 0; q < query.length; q++) {
+          let item = query[q];
+          item.setAttribute("style", css);
+        }
+      } else {
+        if (selector == "__x__append") {
+          s += css;
+        } else {
+          s += sOther[selector];
+        }
       }
     }
   }
+  appendStyle(s);
   element = isConvert ? toArray(element.children) : element.innerHTML;
   return element.length == 1 ? element[0] : element;
+}
+function appendStyle(str) {
+  if (!str) {
+    return;
+  }
+  let style = document.createElement("style");
+  style.innerHTML = str;
+  document.head.appendChild(style);
 }
 
 // src/Utils/UtilsForm.js
@@ -1028,25 +1054,25 @@ function getElementsByDataset() {
   });
   return o;
 }
-function applyCss(elements, styles) {
-  Utils_default.array.each(elements, function(element, index) {
-    Utils_default.array.each(styles, function(css, index2) {
-      let { key, value } = css;
-      if (Utils_default.is.isObject(value)) {
-        let selector = key;
-        let elCss = value;
-        Utils_default.array.each(elCss, function(css2, index3) {
-          let { key: key2, value: value2 } = css2;
-          let target = Utils_default.element.querySelectorIncluded(
-            element,
-            selector
-          );
+function applyCss(element, styles) {
+  Utils_default.array.each(styles, function(css, index) {
+    let { key, value } = css;
+    if (Utils_default.is.isObject(value)) {
+      let selector = key;
+      let elCss = value;
+      Utils_default.array.each(elCss, function(css2, index2) {
+        let { key: key2, value: value2 } = css2;
+        let target = Utils_default.element.querySelectorIncluded(
+          element,
+          selector
+        );
+        if (target) {
           target.style[key2] = value2;
-        });
-      } else {
-        element.style[key] = value;
-      }
-    });
+        }
+      });
+    } else {
+      element.style[key] = value;
+    }
   });
 }
 function appendTo(root, element, cleaned, callback) {
@@ -1096,7 +1122,7 @@ var Piece = class {
     return Utils_default.element.toArray(this.el.getElementsByTagName("*"));
   }
   css(obj) {
-    return applyCss(obj);
+    return applyCss(this.el, obj);
   }
   appendTo(roots, cleaned, callback) {
     return appendTo(roots, this.el, cleaned, callback);
@@ -1496,22 +1522,107 @@ async function compileBind2(elModels, component, isStatic, html, storage2) {
 }
 var CompileRef_default = compileBind2;
 
+// src/Attrib/compile/CompileSubTemplate.js
+async function compileSubTemplate(elModels, component, isStatic, html, storage2) {
+  let compileName = "subtemplate";
+  await loop(
+    compileName,
+    elModels,
+    component,
+    isStatic,
+    function(el, id, target, gr, index) {
+      let bind = el.dataset[compileName];
+      const conf = {
+        _component: component,
+        _type: compileName,
+        sel: id,
+        bind
+      };
+      storage2.push(compileName, conf);
+      storage2.set(id, conf);
+      el.dataset[compileName] = id;
+      el.innerHTML = "";
+    }
+  );
+}
+var CompileSubTemplate_default = compileSubTemplate;
+
+// src/Attrib/compile/CompileValidator.js
+async function compileValidator(elModels, component, isStatic, html, storage2) {
+  let compileName = "validator";
+  await loop(
+    compileName,
+    elModels,
+    component,
+    isStatic,
+    function(el, id, target, gr, index) {
+      for (let g = 0; g < gr.length; g++) {
+        let val = gr[g].split(" ").join("");
+        const conf = {
+          _component: component,
+          _type: compileName,
+          bind: val
+        };
+        storage2.push(compileName, conf);
+        storage2.set(id, conf);
+      }
+      el.dataset[compileName] = id;
+    }
+  );
+}
+var CompileValidator_default = compileValidator;
+
 // src/Attrib/compile/index.js
-async function compile(el, component, isStatic = false, storage2) {
+async function compile(el, component, isStatic = false, storage2, keys) {
   let map2 = {
-    "[data-template]": CompileTemplate_default,
-    ":not([data-template]) > [data-bind]": CompileBind_default,
+    "[data-template]": {
+      handler: CompileTemplate_default,
+      name: "template"
+    },
+    ":not([data-template]) > [data-bind]": {
+      handler: CompileBind_default,
+      name: "bind"
+    },
     //logical
-    ":not([data-template]) > [data-attr]": CompileAttr_default,
+    ":not([data-template]) > [data-attr]": {
+      handler: CompileAttr_default,
+      name: "attr"
+    },
     //logical
-    ":not([data-template]) > [data-class]": CompileClass_default,
+    ":not([data-template]) > [data-class]": {
+      handler: CompileClass_default,
+      name: "class"
+    },
     //logical
-    ":not([data-template]) > [data-toggle]": CompileToggle_default,
+    ":not([data-template]) > [data-toggle]": {
+      handler: CompileToggle_default,
+      name: "toggle"
+    },
     //logical
-    ":not([data-template]) > [data-event]": CompileEvent_default,
-    ":not([data-template]) > [data-route]": CompileRoute_default,
-    ":not([data-template]) > [data-container]": CompileContainer_default,
-    ":not([data-template]) > [data-ref]": CompileRef_default
+    ":not([data-template]) > [data-event]": {
+      handler: CompileEvent_default,
+      name: "event"
+    },
+    ":not([data-template]) > [data-route]": {
+      handler: CompileRoute_default,
+      name: "route"
+    },
+    ":not([data-template]) > [data-container]": {
+      handler: CompileContainer_default,
+      name: "container"
+    },
+    ":not([data-template]) > [data-ref]": {
+      handler: CompileRef_default,
+      name: "ref"
+    },
+    ":not([data-template]) > [data-subtemplate]": {
+      handler: CompileSubTemplate_default,
+      name: "subtemplate"
+    },
+    ":not([data-template]) > [data-validator]": {
+      handler: CompileValidator_default,
+      name: "validator"
+    }
     /*
                     - will not supported
     
@@ -1533,9 +1644,20 @@ async function compile(el, component, isStatic = false, storage2) {
                 
                 */
   };
+  if (keys) {
+    map2 = Object.keys(map2).reduce((accu, key) => {
+      let val = map2[key];
+      if (keys.includes(val.name)) {
+        accu[key] = val;
+      }
+      ;
+      return accu;
+    }, {});
+  }
+  ;
   let query = await getElementsByDataset(
     el,
-    [...Object.keys(map2)]
+    Object.keys(map2)
     // "animate",
     // "if",
     // "for",
@@ -1550,14 +1672,16 @@ async function compile(el, component, isStatic = false, storage2) {
     if (Object.prototype.hasOwnProperty.call(query, q)) {
       if (query[q].length) {
         r.push(
-          map2[q].apply(this, [
+          map2[q].handler.apply(this, [
             query[q],
             component,
             isStatic,
             el,
             storage2,
             prev
-          ])
+          ]).then((res) => {
+            return map2[q].name;
+          })
         );
       }
     }
@@ -1859,12 +1983,94 @@ async function HandlerTemplate(prop, newValue, prevValue, component, html, stora
 }
 var HandlerTemplate_default = HandlerTemplate;
 
+// src/Attrib/handler/HandlerSubTemplate.js
+function identify(str) {
+  if (str.substring(0, 1) == "-") {
+    return "data";
+  } else if (str.substring(0, 1) == "$") {
+    return "selector";
+  }
+}
+async function HandlerSubTemplate(component, html, storage2) {
+  let name = "subtemplate";
+  let st = storage2.get(name);
+  let templating = new Templating_default();
+  let configs = (st || []).filter((item) => item._type == name);
+  if (!configs.length)
+    return;
+  for (let s = 0; s < configs.length; s++) {
+    let sub = configs[s];
+    if (!sub)
+      continue;
+    let sel = sub.sel;
+    let bind = sub.bind;
+    let value = sub.value;
+    let ops = sub.ops;
+    let els = html.querySelectorAllIncluded(`[data-${name}=${sel}]`);
+    Utils_default.array.each(els, function(el, index) {
+      let template = Utils_default.element.querySelectorIncluded(html, `#${bind}`);
+      if (template) {
+        if (template.tagName) {
+          let content = Utils_default.template.getContent(template, true);
+          let attrs = {};
+          let data = {};
+          for (let i = 0; i < el.attributes.length; i++) {
+            let { name: name2, value: value2 } = el.attributes[i];
+            let identity = identify(name2);
+            if (identity == "data") {
+              data[name2.slice(1)] = value2 || true;
+            } else if (identity == "selector") {
+              let t = name2.slice(1);
+              let selector = t.substring(0, name2.indexOf("-") - 1);
+              let attr = name2.substring(selector.length + 2, name2.length);
+              if (!attrs[selector]) {
+                attrs[selector] = {};
+              }
+              ;
+              attrs[selector][attr] = value2 || true;
+            }
+          }
+          let validators = "";
+          Utils_default.array.each(attrs, function(item, index2) {
+            let { key: selector, value: conf } = item;
+            Utils_default.array.each(conf, function(item2, index3) {
+              let { key, value: value2 } = item2;
+              if (key.includes("data-validator")) {
+                let prop = key.substring("data-validator".length + 1, key.length);
+                validators += `${prop}=${value2}, `;
+              }
+              ;
+            });
+            if (validators) {
+              let query = Utils_default.element.querySelectorAllIncluded(content, selector);
+              Utils_default.array.each(query, function(el2, index3) {
+                el2.setAttribute("data-validator", validators);
+              });
+              validators = "";
+            }
+            ;
+          });
+          if (Object.keys(data).length) {
+            content = templating.createElement(data, content, false);
+          }
+          ;
+          el.replaceWith(content);
+        } else {
+          console.error("subtemplate template should be a template tag");
+        }
+      } else {
+        console.error("cannot find template for subtemplate #" + bind);
+      }
+      ;
+    });
+  }
+  return name;
+}
+var HandlerSubTemplate_default = HandlerSubTemplate;
+
 // src/Attrib/index.js
-async function set(prop, newValue, prevValue, component, storage2, templateCompile) {
-  let { name, html } = component;
-  let val = JSON.parse(JSON.stringify(newValue));
-  let hits = {};
-  let actions = [
+async function set(prop, newValue, prevValue, component, storage2, templateCompile, actions) {
+  let dynamicActions = [
     "bind",
     "attr",
     "class",
@@ -1873,9 +2079,15 @@ async function set(prop, newValue, prevValue, component, storage2, templateCompi
     "template",
     "route"
   ];
+  if (actions) {
+    dynamicActions = actions.filter((item) => dynamicActions.includes(item));
+  }
+  let { name, html } = component;
+  let val = JSON.parse(JSON.stringify(newValue));
+  let hits = {};
   let configs = storage2.get();
-  for (let a = 0; a < actions.length; a++) {
-    const action = actions[a];
+  for (let a = 0; a < dynamicActions.length; a++) {
+    const action = dynamicActions[a];
     const vals = configs[action];
     if (vals) {
       for (let v = 0; v < vals.length; v++) {
@@ -1911,14 +2123,15 @@ async function set(prop, newValue, prevValue, component, storage2, templateCompi
     })
   );
 }
-async function inject(el, component, isStatic = false, storage2) {
+async function inject(el, component, isStatic = false, storage2, keys) {
   el = el.el || el;
-  return await compile_default(el, component, isStatic, storage2);
+  return await compile_default(el, component, isStatic, storage2, keys);
 }
 var Attrib = class {
   constructor(storage2, templateCompile) {
     this.storage = storage2;
     this.templateCompile = templateCompile;
+    this.cache = {};
   }
   set(prop, newValue, prevValue, component) {
     return set(
@@ -1927,11 +2140,27 @@ var Attrib = class {
       prevValue,
       component,
       this.storage,
-      this.templateCompile
+      this.templateCompile,
+      this.cache[component]
     );
   }
-  inject(el, component, isStatic = false) {
-    return inject(el, component, isStatic, this.storage);
+  async inject(el, component, isStatic = false, isReInject = false) {
+    let compiled = {};
+    if (!isReInject && this.cache[component]) {
+      compiled = await inject(el, component, isStatic, this.storage, this.cache[component]);
+    } else {
+      compiled = await inject(el, component, isStatic, this.storage);
+    }
+    if (!this.cache[component] && !isReInject) {
+      this.cache[component] = compiled;
+    }
+    return compiled;
+  }
+  async triggerSet(key, component) {
+    let { name, html } = component;
+    if (key == "subtemplate") {
+      return HandlerSubTemplate_default(name, html, this.storage);
+    }
   }
 };
 
@@ -2482,12 +2711,146 @@ var Toggle_default = class {
   }
 };
 
+// src/Form/Validator.js
+var inputEvent = function(callbacks) {
+  return function(e) {
+    if (e) {
+      let target = e.target;
+      let value = e.target.value;
+      let attr = target.dataset.validator;
+      let validator = attr.split(",").reduce((accu, iter) => {
+        let [key, value2] = iter.split("=");
+        if (value2 && value2.includes(",")) {
+          value2 = value2.split(",");
+        } else {
+          value2 = value2 ? value2.trim() : true;
+        }
+        ;
+        accu.push({ key: key.trim(), value: value2 });
+        return accu;
+      }, []);
+      if (!validator.length) {
+        return;
+      }
+      ;
+      const attrValues = {};
+      let _callbacks = validator.filter((item) => {
+        return callbacks[item.key];
+      }).map((item) => {
+        let { key, value: value2 } = item;
+        attrValues[key] = value2;
+        let conf = callbacks[key];
+        let callback = conf.handler;
+        let errorMessage = conf.error;
+        callback.errorMessage = errorMessage;
+        callback.validatorName = key;
+        return callback;
+      });
+      const asy = async function(callbacks2) {
+        this.isLoading();
+        const validation = await Promise.all(callbacks2.map(async (callback) => {
+          let _attrValues = attrValues[callback.validatorName];
+          let message = callback.errorMessage;
+          if (_attrValues && message.includes("{") && message.includes("}")) {
+            let data = _attrValues.split(",").reduce((accu, iter, index) => {
+              accu[`${index}`] = iter;
+              return accu;
+            }, {});
+            message = this.templating.replaceString(data, message);
+          }
+          let test = await callback({
+            target: e.target,
+            value
+          }, _attrValues);
+          return { test, message };
+        }));
+        if (validation.some((val) => !val.test)) {
+          this.addErrorClass(target);
+        } else {
+          this.addSuccessClass(target);
+        }
+        this.showError(target, validation);
+        this.doneLoading();
+      };
+      asy.bind(this)(_callbacks);
+    }
+  };
+};
+var Validator = class {
+  constructor(form, validation, opts) {
+    this.parentClass = opts.parentClass;
+    this.errorTextParent = opts.errorTextParent;
+    this.errorTextTag = opts.errorTextTag;
+    this.errorTextClass = opts.errorTextClass;
+    this.errorClass = opts.errorClass;
+    this.successClass = opts.successClass;
+    this.validation = validation;
+    this.form = form;
+    this.templating = new Templating_default();
+    this._addEvent(this.form);
+  }
+  _addEvent(target) {
+    target.addEventListener("input", inputEvent(this.validation).bind(this));
+  }
+  isLoading() {
+    console.log("validating");
+  }
+  doneLoading() {
+    console.log("validated");
+  }
+  addSuccessClass(target) {
+    if (target.classList.contains(this.errorClass)) {
+      target.classList.replace(this.errorClass, this.successClass);
+    } else if (!target.classList.contains(this.successClass)) {
+      target.classList.add(this.successClass);
+    }
+  }
+  addErrorClass(target) {
+    if (target.classList.contains(this.successClass)) {
+      target.classList.replace(this.successClass, this.errorClass);
+    } else if (!target.classList.contains(this.errorClass)) {
+      target.classList.add(this.errorClass);
+    }
+  }
+  showError(target, validated) {
+    let hasError = false;
+    const messages = validated.reduce((accu, item) => {
+      let { test, message } = item;
+      if (!test) {
+        hasError = true;
+        accu += `${message} <br>`;
+      }
+      ;
+      return accu;
+    }, "");
+    let parentClass = `.${this.parentClass}`;
+    let parent = target.closest(parentClass);
+    if (!parent) {
+      throw new Error("parent is not found");
+    }
+    ;
+    const errorTagIdentity = this.errorTextClass;
+    const connectedErrorTextParent = parent.querySelector(`.${errorTagIdentity}`);
+    if (connectedErrorTextParent) {
+      connectedErrorTextParent.remove();
+    }
+    ;
+    if (hasError) {
+      let tag = document.createElement(this.errorTextParent);
+      tag.classList.add(errorTagIdentity);
+      tag.innerHTML = messages;
+      parent.appendChild(tag);
+    }
+    ;
+  }
+};
+
 // src/Component.js
-async function createElement(query) {
-  if (!query) {
+async function createElement(template) {
+  if (!template) {
     throw new Error(`the template for ${this.name} is not found with.`);
   }
-  let element = Utils_default.template.getContent(query, true);
+  let element = Utils_default.template.getContent(template, true);
   if (!element) {
     throw new Error(
       `it might be theres no template in component - ${this.name}`
@@ -2506,15 +2869,15 @@ function attachStaticMethod(root, handlers, callback) {
 var Component = class {
   constructor(name, template, options) {
     this.name = name;
-    this.template = template;
+    this._parseOptions({ template, ...options });
     this.$templating = new Templating_default();
     this.await = {};
     this.options = options;
     this.renderqueue = options.renderqueue;
-    this.data = {};
+    this.customData = options.data && Utils_default.is.isObject(options.data) || {};
+    this.customCss = options.css && Utils_default.is.isObject(options.css) || {};
     this.root = options.root ? `${options.root}:not(.cake-template)` : options.root;
     this.items = false;
-    this.type = options.type || "view";
     this.toggle = options.toggle;
     this.targets = {};
     this.animateOptions = options.animate;
@@ -2536,9 +2899,10 @@ var Component = class {
     this.container = {};
     this.ref = {};
     this._setUtils();
-    this._compile = this._create(options);
+    this._compile = Promise.resolve();
     this._eventStorage = MemCache_default.object(`${this.name}-cache`);
     this.scopeHistory = {};
+    this.store = {};
   }
   async _create(opts) {
     let { handlers, subscribe, root } = opts;
@@ -2564,80 +2928,116 @@ var Component = class {
         };
       }
     );
-    switch (this.type == "view" && !!this.template) {
+    switch (this.type == "view" && this.template.isStatic) {
       case true:
-        return this._createElementAsync();
+        return this._renderStatic();
       default:
-        this.isStatic = false;
         break;
     }
   }
   async render(options = {}) {
-    await this._compile;
-    let multiple = this.options.multiple;
-    if (options.hasqued) {
-    } else {
-      if (this.isConnected && !multiple) {
-        console.error(
-          `${this.name} is already rendered and connected to the DOM`
-        );
+    try {
+      if (this.template.isStatic) {
+        return;
       }
+      await this._compile;
+      let multiple = this.options.multiple;
+      if (options.hasqued) {
+      } else {
+        if (this.isConnected && !multiple) {
+          console.error(
+            `${this.name} is already rendered and connected to the DOM`
+          );
+        }
+      }
+      if (options.revokeque) {
+        this.await.destroy = Promise.resolve();
+      }
+      if (this.isConnected && !multiple) {
+        return Promise.resolve();
+      }
+      let root = options.root || this.root;
+      let cleaned = options.cleaned;
+      let emit = options.emit || {};
+      this.customData = options.data || this.customData;
+      this.customCss = options.css || this.customCss;
+      if (typeof root == "string") {
+        let sel = `${root}:not(.cake-template)`;
+        root = document.querySelector(sel);
+      }
+      let payload = { emit };
+      this.isConnected = true;
+      this._updateRoute();
+      if (!this.isReady) {
+        await this._createElement();
+        !this.template.has && this.fire.isConnected && this.fire.isConnected(payload, true);
+        this.isReady = true;
+      }
+      await this.await.destroy;
+      await this._getDataOnRender();
+      this.customCss && this.html.css(this.customCss);
+      payload.element = this.html;
+      this.fire.beforeConnected && this.fire.beforeConnected(payload, true);
+      let el = this.$templating.createElement(this.customData, this.html.getElement());
+      this._recacheFromTemplating(el);
+      this.html.replaceDataSrc();
+      console.log("to be connected");
+      this.template.isTemplate && this.html.appendTo(root, cleaned);
+      console.log("already connected");
+      await this._replaceRouter();
+      await this._findRef();
+      await this._findContainer();
+      this._setToggler();
+      this._activateValidator();
+      this.fire.isConnected && await this.fire.isConnected(payload, true);
+      await this._addEvent();
+      multiple && await this._hardReset();
+    } catch (err) {
+      console.log(281, err);
     }
-    if (options.revokeque) {
-      this.await.destroy = Promise.resolve();
-    }
-    if (this.isConnected && !multiple) {
-      return Promise.resolve();
-    }
-    let root = options.root || this.root;
-    let cleaned = options.cleaned;
-    let emit = options.emit || {};
-    let DATA = options.data || {};
-    let CSS = options.css;
-    if (!root) {
-      root = "#App";
-    }
-    if (typeof root == "string") {
-      let sel = `${root}:not(.cake-template)`;
-      root = document.querySelector(sel);
-    }
-    let payload = { emit };
-    this.isConnected = true;
-    this._updateRoute();
-    if (!this.isReady) {
-      await this._createElement();
-      await !this.template && this.fire.isConnected && this.fire.isConnected(payload, true);
-      this.isReady = true;
-    }
-    await this.await.destroy;
+  }
+  async _getDataOnRender() {
     if (this.options.onRender && this.options.onRender.constructor && ["Function", "AsyncFunction"].includes(
       this.options.onRender.constructor.name
     )) {
-      this.onRenderConfig = await this.options.onRender.bind(this)(this);
+      this.onRenderConfig = await this.options.onRender.bind(this)(
+        this
+      );
       let data = this.onRenderConfig.data;
+      let css = this.onRenderConfig.css;
       if (data) {
-        DATA = Object.assign(DATA, data);
+        this.customData = Object.assign(this.customData, data);
+      }
+      if (css) {
+        this.customCss = Object.assign(this.customCss, css);
       }
     }
-    CSS && this.html.css(CSS);
-    payload.element = this.html;
-    this.fire.beforeConnected && this.fire.beforeConnected(payload, true);
+  }
+  async _renderStatic() {
+    await this._createElement();
+    this.isReady = true;
+    await this._updateRoute();
+    await this._getDataOnRender();
+    this.fire.beforeConnected && await this.fire.beforeConnected({}, true);
     let el = this.html.getElement();
-    el = this.$templating.createElement(DATA, el);
+    el = this.$templating.createElement(this.customData, el);
     this.html = new Piece(el);
     this.html.replaceDataSrc();
-    DATA = null;
-    !this.isStatic && this.html.appendTo(root, cleaned);
     await this._replaceRouter();
     await this._findRef();
     await this._findContainer();
     this._setToggler();
-    this.fire.isConnected && await this.fire.isConnected(payload, true);
+    this._activateValidator();
+    this.fire.isConnected && await this.fire.isConnected({}, true);
     await this._addEvent();
-    multiple && await this._hardReset();
+  }
+  async _renderDynamic() {
   }
   _updateRoute() {
     let route = this.$router._getCurrentRoute();
+    if (!route) {
+      return;
+    }
     for (let key in route) {
       if (Object.prototype.hasOwnProperty.call(route, key)) {
         this.$router[key] = route[key];
@@ -2785,21 +3185,48 @@ var Component = class {
     await this._createElement();
     this.isReady = true;
   }
+  _parseOptions(options) {
+    let template = options.template;
+    this.template = {
+      isStatic: false,
+      isTemplate: false,
+      has: false,
+      isID: false
+    };
+    if (template) {
+      this.template.has = true;
+      this.template.element = document.querySelector(template);
+      if (template.substring(0, 1) == "#") {
+        this.template.isID = true;
+        if (this.template.element) {
+          this.template.isTemplate = this.template.element.toString().includes("Template");
+          if (!this.template.isTemplate) {
+            this.template.isStatic = true;
+          }
+        } else {
+          throw new Error(`${template} is not found in the DOM`);
+        }
+      }
+    } else {
+      this.template.has = false;
+      this.template.element = null;
+    }
+    this.type = options.type || "view";
+  }
   async _createElement() {
-    let isSelector = this.template.substring(0, 1) == "#";
+    let isSelector = this.template.isID;
     if (!isSelector)
       return;
-    let selector = this.template.substr(1);
-    let query = document.getElementById(selector);
-    let isTemplate = this.isTemplate = query && query.toString().includes("Template");
+    let query = this.template.element;
     if (!query) {
       throw new Error(`the template for ${this.name} is not found with.`);
     }
     let element = null;
-    if (isTemplate) {
+    if (this.template.isTemplate) {
       element = await createElement(query);
       element.cake_component = this.name;
-    } else {
+      element.kwik_component = this.name;
+    } else if (this.template.isStatic) {
       element = query;
       if (!element) {
         throw new Error(
@@ -2807,25 +3234,67 @@ var Component = class {
         );
       }
       element.cake_component = this.name;
-      this.isStatic = true;
     }
-    this.html = new Piece(element);
-    await this._parseHTML(this.html, this.isStatic);
+    console.log(this.name, "parsing template");
+    this._cloneTemplate(element);
+    await this._parseHTML(this.html, this.template.isStatic);
+    await this._cacheTemplate(element);
   }
   async _hardReset() {
-    this.html = await this.original.cloneNode();
+    await this.html.remove(this.name);
     await this._eventStorage.destroy();
+    this._reUseTemplate();
     return true;
   }
-  async _parseHTML(html, isStatic) {
-    if (!this.original) {
+  async _cloneTemplate(element) {
+    this.html = new Piece(element);
+    this.original = this.html.cloneNode();
+  }
+  async _cacheTemplate(html) {
+    await this._replaceSubTemplate();
+    this.template.cached = true;
+  }
+  async _replaceSubTemplate() {
+    await this.$attrib.triggerSet("subtemplate", this);
+  }
+  async _recacheFromSubTemplate(html) {
+    if (!this.template.recacheFromSubTemplate) {
+      this.html = new Piece(html);
       this.original = await html.cloneNode();
+      this.template.recacheFromSubTemplate = true;
     }
-    await this.$attrib.inject(html, this.name, isStatic);
+  }
+  async _recacheFromTemplating(html) {
+    if (this.html) {
+      this.html = new Piece(html);
+      this.template.recacheFromTemplating = true;
+    }
+  }
+  async _reUseTemplate() {
+    const cloned = await this.original.cloneNode();
+    this.html = new Piece(cloned);
+  }
+  async _parseHTML(html, isStatic, isReInject) {
+    await this.$attrib.inject(html, this.name, isStatic, isReInject);
     this._isParsed = true;
   }
+  async renderQue(options) {
+    let hasNoId = options.id == void 0 && options.id != null;
+    if (hasNoId) {
+      throw new Error("renderQue method requires an id.");
+    }
+    let id = options.id;
+    if (id) {
+      options.hasqued = true;
+      this.renderQueing.push({
+        date: (/* @__PURE__ */ new Date()).toString(),
+        id,
+        options
+      });
+    }
+    return this.render(options);
+  }
   async reset(options = {}) {
-    this.name == "nav" && console.log("reset");
     let hasNoId = options.id == void 0 && options.id != null;
     if (hasNoId) {
       throw new Error("renderQue method requires an id.");
@@ -2841,11 +3310,10 @@ var Component = class {
         return item.id != id;
       });
     }
+    await this._hardReset(this.name);
     this.container = {};
     this.isConnected = false;
     this.isReady = false;
-    await this.html.remove(this.name);
-    await this._hardReset(this.name);
     if (this.renderQueing && this.renderQueing.length) {
       if (conf) {
         let options2 = conf.options;
@@ -2918,17 +3386,18 @@ var Component = class {
     if (value == void 0) {
       throw new Error("value is required");
     }
+    let prev = "";
     if (Utils_default.is.isString(key) || Utils_default.is.isNumber(key)) {
       if (this.scopeHistory[key] == value) {
-        return true;
+        prev = this.scopeHistory[key];
       }
       this.scopeHistory[key] = value;
     }
-    let notify = await this.$attrib.set(key, value, null, this);
+    let notify = await this.$attrib.set(key, value, prev, this);
     if (notify.includes("template")) {
       await new Promise((res) => {
         setTimeout(async () => {
-          await this._parseHTML(this.html);
+          await this._parseHTML(this.html, false, true);
           await this._replaceRouter();
           await this._findRef();
           await this._findContainer();
@@ -2936,6 +3405,11 @@ var Component = class {
           res();
         }, 100);
       });
+    }
+  }
+  _activateValidator() {
+    if (this.role == "form") {
+      this.$validator = Validator;
     }
   }
   _setParent(groupName) {
@@ -2947,6 +3421,7 @@ var Component = class {
   }
   _setObserver(observer) {
     this.$observer = observer;
+    this._compile = this._create(this.options);
   }
   _setDefaultRoot(root) {
     this.defaultRoot = root;
@@ -3052,6 +3527,24 @@ var Router = class {
         }
       }
     }
+    document.dispatchEvent(
+      (() => {
+        let _path = "/";
+        for (let path in routes) {
+          if (Object.prototype.hasOwnProperty.call(routes, path)) {
+            if (location.pathname == path) {
+              _path = location.pathname;
+            }
+          }
+        }
+        return new CustomEvent("pathChanged", {
+          detail: {
+            path: _path,
+            component: this.name
+          }
+        });
+      })()
+    );
     return {
       goTo: this.goTo.bind(this),
       goBack: this.goBack.bind(this),
@@ -3706,18 +4199,114 @@ var Router = class {
 };
 var Router2_default = Router;
 
+// src/Custom/SubTemplate.js
+function getFirst(str, separator) {
+  let trimmed = str.trim();
+  let attrKey = trimmed.slice(0, trimmed.indexOf(separator));
+  let attrValue = trimmed.slice(trimmed.indexOf(separator) + 1, trimmed.length);
+  return {
+    first: attrKey,
+    second: attrValue
+  };
+}
+var SubTemplate_default = customElements.define(
+  "sub-template",
+  class extends HTMLElement {
+    constructor() {
+      super();
+      this.templating = new Templating_default();
+      this.data = {};
+      this._attr = {};
+      this._selector = [];
+      this.whitelistAttr = ["data-sub-template"];
+    }
+    connectedCallback() {
+      let attrs = this.attributes;
+      for (let a = 0; a < attrs.length; a++) {
+        let attr = attrs[a];
+        let name = attr.name;
+        let value = attr.value;
+        if (name.includes("@")) {
+          this.data[name.replace("@", "")] = value;
+        } else if (name.includes("$")) {
+          let key = name.replace("$", "");
+          let { first: selector, second: prop } = getFirst(key, "-");
+          if (prop.includes("data-validator")) {
+            this._selector.push({ selector, key: prop, value: value || true });
+          }
+          if (prop == "attr") {
+            let grattrs = value.split(";");
+            grattrs.forEach((gr) => {
+              let [key2, value2] = gr.trim().split("=");
+              this._selector.push({ selector, prop, key: key2, value: value2 });
+            });
+          }
+        } else {
+          this._attr[name] = value;
+        }
+      }
+      ;
+      this.replace(this);
+    }
+    replace(subTemplate) {
+      let ref = subTemplate.dataset.subTemplate;
+      let refEl = document.querySelector(`template#${ref}`);
+      if (refEl.length > 1) {
+        console.error(`template with name ${ref} has more than one reference.`);
+        return;
+      }
+      ;
+      if (!refEl) {
+        subTemplate.remove();
+        throw new Error(`${ref} is not found!`);
+      }
+      ;
+      if (refEl) {
+        let temp = refEl;
+        let template = Utils_default.template.getContent(temp);
+        let el = this.templating.createElement(this.data, template, false);
+        Object.keys(this._attr).forEach((key) => {
+          if (!this.whitelistAttr.includes(key)) {
+            let val = this._attr[key];
+            el.setAttribute(key, val);
+          }
+          ;
+        });
+        this._selector.forEach((item) => {
+          let { selector, prop, key, value } = item;
+          let targets = Utils_default.element.querySelectorAllIncluded(el, selector);
+          targets.forEach((target) => {
+            target.setAttribute(key, value || true);
+          });
+        });
+        subTemplate.replaceWith(el);
+      }
+      ;
+    }
+  }
+);
+
+// src/Custom/index.js
+var Custom_default = () => {
+  return {
+    SubTemplate: SubTemplate_default
+  };
+};
+
 // src/index.js
+var ElementStorage = MemCache_default.element;
+Custom_default();
 var Cake = class {
   constructor(opts) {
+    this.opts = opts;
     this.name = opts.name;
     this.defaultRoot = opts.defaultRoot;
     this.components = {};
-    this.Observer = new Observer(this.name);
     this.excludeQuery = [".cake-template"];
     this.router = opts.router;
+    this.Observer = new Observer(this.name);
     this.templateCompile = opts.templateCompiler;
-    this._registerComponents(opts.components || []);
-    this._registerRouter();
+    this._register();
   }
   // Component(name, template, opts = {}) {
   //     opts._observer = this.Observer;
@@ -3726,6 +4315,13 @@ var Cake = class {
   //     opts._defaultRoot = this.defaultRoot;
   //     return new Component(this.name, name, template, opts);
   // }
+  async _register() {
+    this._registerRouter().then(() => {
+      this._registerComponents(this.opts.components || []);
+      this.opts.init && this.opts.init.bind(this)();
+      this._mountRouter();
+    });
+  }
   async _registerRouter() {
     let router = await this.router();
     for (let route in router.routes) {
@@ -3742,32 +4338,35 @@ var Cake = class {
       this._Router = new Router2_default(this.name, router.routes, router.options);
       this.hasRouter = true;
     }
-    await this._mountRouter();
   }
   _registerComponents(components) {
-    components.forEach((component) => {
-      component._setTemplateCompile(this.templateCompile);
-      component._setParent(this.name);
-      component._setObserver(this.Observer);
-      component._setDefaultRoot(this.defaultRoot);
-      component._setStorage(
-        new StorageKit({
-          name: "cache",
-          storage: "session",
-          child: "object"
-        })
-      );
-      component.options.data && component.options.data.bind(component.data)(component);
-      component.options.utils && component.options.utils.bind(component.utils)(component);
-      component._setGlobalScope(
-        new StorageKit({
-          name: "globalScope",
-          storage: "session",
-          child: "object"
-        })
-      );
-      this.components[component.name] = component;
-    });
+    try {
+      components.forEach((component) => {
+        component._setTemplateCompile(this.templateCompile);
+        component._setParent(this.name);
+        component._setObserver(this.Observer);
+        component._setDefaultRoot(this.defaultRoot);
+        component._setStorage(
+          new StorageKit({
+            name: "cache",
+            storage: "session",
+            child: "object"
+          })
+        );
+        component.options.store && Utils_default.is.isFunction(component.options.store) && component.options.store.bind(component.store)(component);
+        component.options.utils && component.options.utils.bind(component.utils)(component);
+        component._setGlobalScope(
+          new StorageKit({
+            name: "globalScope",
+            storage: "session",
+            child: "object"
+          })
+        );
+        this.components[component.name] = component;
+      });
+    } catch (err) {
+      console.log(err);
+    }
   }
   _mountRouter() {
     Object.keys(this.components).forEach((name) => {
@@ -3778,6 +4377,7 @@ var Cake = class {
 };
 export {
   Component,
+  ElementStorage,
   Observer,
   Router2_default as Router,
   Cake as default

@@ -8,6 +8,7 @@ import HandlerClass from "./handler/HandlerClass";
 import HandlerToggle from "./handler/HandlerToggle";
 import HandlerRoute from "./handler/HandlerRoute";
 import HandlerTemplate from "./handler/HandlerTemplate";
+import HandlerSubTemplate from "./handler/HandlerSubTemplate";
 
 async function set(
     prop,
@@ -15,14 +16,11 @@ async function set(
     prevValue,
     component,
     storage,
-    templateCompile
+    templateCompile,
+    actions 
 ) {
-    let { name, html } = component;
 
-    let val = JSON.parse(JSON.stringify(newValue));
-
-    let hits = {};
-    let actions = [
+    let dynamicActions = [
         "bind",
         "attr",
         "class",
@@ -32,10 +30,25 @@ async function set(
         "route",
     ];
 
+    // console.log(32,component,prop, actions);
+
+
+    if(actions){
+        dynamicActions = actions.filter(item=>dynamicActions.includes(item));
+    }
+
+    // console.log(37,dynamicActions);
+
+    let { name, html } = component;
+
+    let val = JSON.parse(JSON.stringify(newValue));
+
+    let hits = {};
+
     let configs = storage.get();
 
-    for (let a = 0; a < actions.length; a++) {
-        const action = actions[a];
+    for (let a = 0; a < dynamicActions.length; a++) {
+        const action = dynamicActions[a];
         const vals = configs[action];
 
         if (vals) {
@@ -78,9 +91,9 @@ async function set(
     );
 }
 
-async function inject(el, component, isStatic = false, storage) {
+async function inject(el, component, isStatic = false, storage, keys) {
     el = el.el || el;
-    return await compile(el, component, isStatic, storage);
+    return await compile(el, component, isStatic, storage, keys);
 }
 
 export default class Attrib {
@@ -89,18 +102,44 @@ export default class Attrib {
 
         this.storage = storage;
         this.templateCompile = templateCompile;
+
+        this.cache = {};
     }
     set(prop, newValue, prevValue, component) {
+        // console.log(108, prop, newValue, component);
         return set(
             prop,
             newValue,
             prevValue,
             component,
             this.storage,
-            this.templateCompile
+            this.templateCompile,
+            this.cache[component]
         );
     }
-    inject(el, component, isStatic = false) {
-        return inject(el, component, isStatic, this.storage);
+    async inject(el, component, isStatic = false, isReInject = false) {
+        let compiled = {};
+        if(!isReInject && this.cache[component]){
+            compiled = await inject(el, component, isStatic, this.storage, this.cache[component]);
+        } else {
+            compiled = await inject(el, component, isStatic, this.storage);
+        }
+
+        // console.log(126,component, this.cache[component]);
+
+        if(!this.cache[component] && !isReInject){
+            this.cache[component] = compiled;
+        }
+
+        return compiled;
+    }
+    async triggerSet(key, component){
+        let { name, html } = component;
+
+        // console.log(139,key, name, html);
+
+        if (key == "subtemplate") {
+            return HandlerSubTemplate(name,html,this.storage);
+        }
     }
 }

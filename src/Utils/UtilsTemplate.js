@@ -24,41 +24,49 @@ function _parseStyle(style) {
     if (!styles.length) {
         return;
     }
-    let obj = {};
+    let regexp =
+        "((\\s*?@media[\\s\\S]*?){([\\s\\S]*?)}\\s*?})|(([\\s\\S]*?){([\\s\\S]*?)})";
+    let regexp1 = "([\\s\\S]*?){([\\s\\S]*?)}";
 
-    let splitted = styles.split("}");
-    for (let sp = 0; sp < splitted.length; sp++) {
-        let item = splitted[sp];
-        let _sp1 = item.split("{");
-        let sel = _sp1[0];
-        let style = _sp1[1];
-        // let [sel, style] = item.split("{");
-        if (sel) {
-            obj[sel.trim()] = (() => {
-                let n = false;
-                let s = "";
-                let splitted = style.split("");
-                for (let sp = 0; sp < splitted.length; sp++) {
-                    let item = splitted[sp];
-                    if (item == "\n") {
-                        n = true;
-                    } else if (item == " ") {
-                        if (n) {
-                            //
-                        } else {
-                            s += item;
-                        }
-                    } else {
-                        n = false;
-                        s += item;
-                    }
+    let parsed = styles.matchAll(regexp);
+
+    let props = {
+        __x__other: {},
+        __x__append: "",
+    };
+
+    for (let i of parsed) {
+        let [a, b, c, d, e, f] = i;
+
+        if (a.includes("@keyframes")) {
+            props.__x__append += a;
+        } else if (a.includes("@media")) {
+            props.__x__append += `${a} }`;
+        } else {
+            let _parsed = a.matchAll(regexp1);
+            for (let i of _parsed) {
+                let [a, b, c] = i;
+                b = b.trim();
+
+                let cTrim = c.replace(/\n/g, "").trim();
+
+                if (!props[b]) {
+                    props[b] = cTrim;
+                } else {
+                    props[b] += cTrim;
                 }
-                return s;
-            })();
+
+                if (b.slice(1).includes(".")) {
+                    if (!props.__x__other[b]) {
+                        props.__x__other[b] = "";
+                    }
+                    props.__x__other[b] += a;
+                }
+            }
         }
     }
 
-    return obj;
+    return props;
 }
 
 function _parseHTML(others) {
@@ -80,20 +88,45 @@ function getContent(template, isConvert) {
     let styles = _parseStyle(style);
     let element = _parseHTML(others);
 
+    let sOther = styles.__x__other || {};
+    delete styles.__x__other;
+
+    let s = "";
+
     for (let selector in styles) {
         if (Object.prototype.hasOwnProperty.call(styles, selector)) {
-            let query = element.querySelectorAll(selector);
             let css = styles[selector];
-            for (let q = 0; q < query.length; q++) {
-                let item = query[q];
-                item.setAttribute("style", css);
+            let query = element.querySelectorAll(selector);
+            if (query.length) {
+                for (let q = 0; q < query.length; q++) {
+                    let item = query[q];
+                    item.setAttribute("style", css);
+                }
+            } else {
+                if (selector == "__x__append") {
+                    s += css;
+                } else {
+                    s += sOther[selector];
+                }
             }
         }
     }
+
+    appendStyle(s);
+
     element = isConvert
         ? UtilsElement.toArray(element.children)
         : element.innerHTML;
     return element.length == 1 ? element[0] : element;
+}
+
+function appendStyle(str) {
+    if (!str) {
+        return;
+    }
+    let style = document.createElement("style");
+    style.innerHTML = str;
+    document.head.appendChild(style);
 }
 
 export { getContent };

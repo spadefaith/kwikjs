@@ -71,6 +71,28 @@ class Router {
             }
         }
 
+        document.dispatchEvent(
+            (()=>{
+                /**
+                 * make sure that the path is the current path, upon refresh
+                 */
+                let _path = "/";
+                for (let path in routes) {
+                    if (Object.prototype.hasOwnProperty.call(routes, path)) {
+                        if(location.pathname == path){
+                            _path =location.pathname;
+                        }   
+                    }
+                }
+                return new CustomEvent("pathChanged", {
+                    detail: {
+                        path: _path,
+                        component: this.name,
+                    },
+                })
+            })()
+        );
+
         return {
             goTo: this.goTo.bind(this),
             goBack: this.goBack.bind(this),

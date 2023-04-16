@@ -108,10 +108,13 @@ function classNameTogglerByDataName(elements, dataName, activeClass) {
 }
 
 function replaceDataSrc(root) {
+    if(!root){
+        throw new Error("data-src is not found");
+    }
     let srcs = querySelectorAllIncluded(root, "data-src", null);
     for (let s = 0; s < srcs.length; s++) {
         let el = srcs[s];
-        if (el.dataset.src) {
+        if (el && el.dataset.src) {
             el.setAttribute("src", el.dataset.src);
             el.removeAttribute("data-src");
         }

@@ -1,7 +1,10 @@
 import { loop } from "../Utils";
 
-async function compileTemplate(elModels, component, isStatic, html, storage) {
-    let compileName = "template";
+async function compileSubTemplate(elModels, component, isStatic, html, storage) {
+    let compileName = "subtemplate";
+
+    // console.log(6, elModels);
+
     await loop(
         compileName,
         elModels,
@@ -19,11 +22,14 @@ async function compileTemplate(elModels, component, isStatic, html, storage) {
                 _type: compileName,
                 sel: id,
                 bind,
-                template: el.innerHTML,
             };
+
+            // console.log(28, el, conf);
 
             storage.push(compileName, conf);
             storage.set(id, conf);
+
+            // console.log(storage.get());
 
             el.dataset[compileName] = id;
             el.innerHTML = "";
@@ -31,4 +37,4 @@ async function compileTemplate(elModels, component, isStatic, html, storage) {
     );
 }
 
-export default compileTemplate;
+export default compileSubTemplate;

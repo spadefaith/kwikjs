@@ -1,6 +1,7 @@
 import Observer from "./Observer";
 import Component from "./Component";
 import Router from "./Router2";
+import Custom from "./Custom";
 // import Piece from "./Piece";
 
 import Storage from "./Storage";
@@ -8,26 +9,37 @@ import Storage from "./Storage";
 import MemCache from "./MemCache";
 // import Toggle from "./Toggle";
 
-export { Observer, Component, Router };
+import Utils from "./Utils";
+
+const ElementStorage = MemCache.element;
+
+export { Observer, Component, Router, ElementStorage };
+
+Custom();
 
 export default class Cake {
     constructor(opts) {
+        
+        this.opts = opts;
         this.name = opts.name;
 
         this.defaultRoot = opts.defaultRoot;
 
         this.components = {};
 
-        this.Observer = new Observer(this.name);
+
 
         this.excludeQuery = [".cake-template"];
 
         this.router = opts.router;
 
+        this.Observer = new Observer(this.name);
+
         this.templateCompile = opts.templateCompiler;
 
-        this._registerComponents(opts.components || []);
-        this._registerRouter();
+
+        this._register();
+        
     }
     // Component(name, template, opts = {}) {
     //     opts._observer = this.Observer;
@@ -36,6 +48,17 @@ export default class Cake {
     //     opts._defaultRoot = this.defaultRoot;
     //     return new Component(this.name, name, template, opts);
     // }
+    async _register(){
+        this._registerRouter()
+        .then(()=>{
+            // console.log(49, this.opts.components);
+            this._registerComponents(this.opts.components || []);
+            this.opts.init && this.opts.init.bind(this)();
+
+
+            this._mountRouter();
+        })
+    }
     async _registerRouter() {
         let router = await this.router();
 
@@ -52,53 +75,55 @@ export default class Cake {
                 }
             }
         }
-
         if (!this.hasRouter) {
             this._Router = new Router(this.name, router.routes, router.options);
             this.hasRouter = true;
         }
 
-        await this._mountRouter();
+       
     }
 
     _registerComponents(components) {
-        components.forEach((component) => {
-            component._setTemplateCompile(this.templateCompile);
-
-            component._setParent(this.name);
-            component._setObserver(this.Observer);
-            component._setDefaultRoot(this.defaultRoot);
-            component._setStorage(
-                new Storage({
-                    name: "cache",
-                    storage: "session",
-                    child: "object",
-                })
-            );
-
-            component.options.data &&
-                component.options.data.bind(component.data)(component);
-
-            component.options.utils &&
-                component.options.utils.bind(component.utils)(component);
-
-            component._setGlobalScope(
-                new Storage({
-                    name: "globalScope",
-                    storage: "session",
-                    child: "object",
-                })
-            );
-
-            // component._setToggler(new Toggle(component.toggle));
-
-            this.components[component.name] = component;
-        });
+        // console.log(79, components);
+        try {
+            components.forEach((component) => {
+                component._setTemplateCompile(this.templateCompile);
+    
+                component._setParent(this.name);
+                component._setObserver(this.Observer);
+                component._setDefaultRoot(this.defaultRoot);
+                component._setStorage(
+                    new Storage({
+                        name: "cache",
+                        storage: "session",
+                        child: "object",
+                    })
+                );
+                component.options.store && Utils.is.isFunction(component.options.store) &&
+                    component.options.store.bind(component.store)(component);
+                component.options.utils &&
+                    component.options.utils.bind(component.utils)(component);
+                component._setGlobalScope(
+                    new Storage({
+                        name: "globalScope",
+                        storage: "session",
+                        child: "object",
+                    })
+                );
+    
+                // component._setToggler(new Toggle(component.toggle));
+    
+                this.components[component.name] = component;
+            });
+        } catch(err){
+            console.log(err);
+        }
     }
 
     _mountRouter() {
         Object.keys(this.components).forEach((name) => {
             let component = this.components[name];
+            // console.log(112,name, this._Router);
             component._setRouter(this._Router);
         });
     }

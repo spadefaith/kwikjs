@@ -12,19 +12,44 @@ import compileTemplate from "./CompileTemplate";
 import compileRoute from "./CompileRoute";
 import compileContainer from "./CompileContainer";
 import compileRef from "./CompileRef";
+import compileSubTemplate from "./CompileSubTemplate";
+import compileValidator from "./CompileValidator";
 
-async function compile(el, component, isStatic = false, storage) {
+async function compile(el, component, isStatic = false, storage, keys) {
     let map = {
-        "[data-template]": compileTemplate,
-        ":not([data-template]) > [data-bind]": compileBind, //logical
-        ":not([data-template]) > [data-attr]": compileAttr, //logical
-        ":not([data-template]) > [data-class]": compileClass, //logical
-        ":not([data-template]) > [data-toggle]": compileToggle, //logical
-        ":not([data-template]) > [data-event]": compileEvent,
-        ":not([data-template]) > [data-route]": compileRoute,
-        ":not([data-template]) > [data-container]": compileContainer,
-        ":not([data-template]) > [data-ref]": compileRef,
-
+        "[data-template]": {
+            handler:compileTemplate, name:"template"
+        },
+        ":not([data-template]) > [data-bind]": {
+            handler:compileBind, name:"bind"
+        }, //logical
+        ":not([data-template]) > [data-attr]": {
+            handler:compileAttr, name:"attr"
+        }, //logical
+        ":not([data-template]) > [data-class]": {
+            handler:compileClass, name:"class"
+        }, //logical
+        ":not([data-template]) > [data-toggle]": {
+            handler:compileToggle, name:"toggle"
+        }, //logical
+        ":not([data-template]) > [data-event]": {
+            handler:compileEvent, name:"event"
+        },
+        ":not([data-template]) > [data-route]": {
+            handler:compileRoute, name:"route"
+        },
+        ":not([data-template]) > [data-container]": {
+            handler:compileContainer, name:"container"
+        },
+        ":not([data-template]) > [data-ref]": {
+            handler:compileRef, name:"ref"
+        },
+        ":not([data-template]) > [data-subtemplate]": {
+            handler:compileSubTemplate, name:"subtemplate"
+        },
+        ":not([data-template]) > [data-validator]": {
+            handler:compileValidator, name:"validator"
+        },
         /*
                 - will not supported
 
@@ -49,9 +74,23 @@ async function compile(el, component, isStatic = false, storage) {
             */
     };
 
+
+    if(keys){
+        map = Object.keys(map).reduce((accu, key)=>{
+            let val = map[key];
+            if(keys.includes(val.name)){
+                accu[key] = val;
+            };
+            return accu;
+        },{});
+    };
+
+    // console.log(80,keys, map);
+
+
     let query = await getElementsByDataset(
         el,
-        [...Object.keys(map)]
+        Object.keys(map)
 
         // "animate",
         // "if",
@@ -82,14 +121,16 @@ async function compile(el, component, isStatic = false, storage) {
                 // component == "form" && console.log(73, q, query[q]);
 
                 r.push(
-                    map[q].apply(this, [
+                    map[q].handler.apply(this, [
                         query[q],
                         component,
                         isStatic,
                         el,
                         storage,
                         prev,
-                    ])
+                    ]).then(res=>{
+                        return map[q].name;
+                    })
                 );
             }
         }
