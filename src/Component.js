@@ -13,6 +13,8 @@ import Toggle from "./Toggle";
 
 import Validator from "./Form/Validator";
 
+const ElementStorage = MemCache.element;
+
 async function createElement(template) {
     if (!template) {
         throw new Error(`the template for ${this.name} is not found with.`);
@@ -66,12 +68,16 @@ export default class Component {
         // this.$scope = {};
         // this.$scope.set = this.$attrib.set;
 
+        this.htmlTemplateSelector = template;
+
         this._parseOptions({ template, ...options });
 
 
         this.$templating = new Templating();
 
         this.await = {};
+
+        this.onInit = options.onInit;
 
         this.options = options;
         this.renderqueue = options.renderqueue;
@@ -123,6 +129,10 @@ export default class Component {
         this.store = {};
     }
     async _create(opts) {
+
+        if(this._isCreated){
+            return;
+        }
         let { handlers, subscribe, root } = opts;
 
 
@@ -132,13 +142,14 @@ export default class Component {
 
         let _subsribes = await this._bindSubscribe(subscribe, this);
 
-        // this.name == "spinner" && console.log(121, _subsribes);
+
 
         await this.$observer._handlers(handlers, this);
         await this.$observer._subscriber(_subsribes, this);
 
         this.fire = (event, payload) => {
             // console.trace();
+            // console.log(146,event);
             this.$observer.broadcast(this.name, event, payload);
         };
 
@@ -171,6 +182,8 @@ export default class Component {
                 // this.isStatic = false;
                 break;
         }
+
+        this._isCreated = true;
     }
 
     async render(options = {}) {
@@ -264,10 +277,10 @@ export default class Component {
 
             this.html.replaceDataSrc();
 
-            console.log('to be connected');
+            // console.log('to be connected');
             this.template.isTemplate && this.html.appendTo(root, cleaned);
             
-            console.log('already connected');
+            // console.log('already connected');
 
             // this._recacheFromSubTemplate();
 
@@ -296,7 +309,7 @@ export default class Component {
             await this._addEvent();
             multiple && (await this._hardReset());
         } catch (err) {
-            console.log(281, err);
+            console.log(281, this.name, err);
         }
 
         // await this._watchReactive();
@@ -654,7 +667,7 @@ export default class Component {
 
         // console.log(element.outerHTML);
 
-        console.log(this.name,'parsing template');
+        // console.log(this.name,'parsing template');
 
         // this.html = new Piece(element);
 
@@ -809,7 +822,7 @@ export default class Component {
         let component = this.name;
         let $this = this;
 
-        // console.log(this.name, "addevent");
+
 
         function notify(
             id,
@@ -832,13 +845,17 @@ export default class Component {
             };
         }
 
-        // console.log(626, this.attribStorage.get("event"));
+        // setTimeout(()=>{
+        //     this.name == "TriggerList" && console.log(626, this.attribStorage.get("event"));
+        // },2000);
 
         this.targets = (this.attribStorage.get("event") || []).filter(
             (item) => item._component == this.name
         );
 
-        // this.name == "toolbar" && console.log(624, this.attribStorage.get());
+        // this.name == "FormAccount" && console.log(841,this.targets);
+
+        // this.name == "TriggerList" && console.log(624, "add event",this.targets);
 
         this.targets.forEach((cf) => {
             let { bind, cb, event, sel, _type, _component } = cf;
@@ -846,6 +863,8 @@ export default class Component {
             let el = this.html.querySelectorIncluded(`[data-event=${sel}]`);
 
             // console.log(506, this.name, el, `[data-event=${sel}]`);
+
+            // this.name == "FormAccount" && console.log(507, this.name, el, `[data-event=${sel}]`);
 
             let _event = event;
 
@@ -864,11 +883,17 @@ export default class Component {
                 }
             }
 
-            if (!this._eventStorage.get("__cake__events")) {
-                this._eventStorage.set("__cake__events", {});
+
+            
+            let cache = new ElementStorage(el);
+
+
+
+            if (!cache.get("__cake__events")) {
+                cache.set("__cake__events", {});
             }
 
-            let store = this._eventStorage.get("__cake__events");
+            let store = cache.get("__cake__events");
 
             // console.log(507, store);
 
@@ -890,7 +915,7 @@ export default class Component {
                     true
                 );
                 store[cb] = true;
-                this._eventStorage.set("__cake__events", store);
+                cache.set("__cake__events", store);
             }
         });
     }
@@ -924,7 +949,7 @@ export default class Component {
 
         let notify = await this.$attrib.set(key, value, prev, this);
 
-        // this.name == "toolbar" && console.log(659, notify);
+        // this.name == "TriggerList" && console.log(659, notify);
 
         if (notify.includes("template")) {
             // this.name == "toolbar" && console.log(659, this.html.el.innerHTML);
@@ -968,7 +993,7 @@ export default class Component {
                     await this._findRef();
                     await this._findContainer();
                     await this._setToggler();
-
+                    await this._addEvent();
                     res();
                 }, 100);
             });
@@ -988,8 +1013,18 @@ export default class Component {
         this.$attrib = new Attrib(this.attribStorage, this._templateCompile);
     }
     _setObserver(observer) {
+
+
         this.$observer = observer;
         this._compile = this._create(this.options);
+
+
+
+        // if(this.name == "AdmissionTable"){
+        //     // console.log(121,this.name,  _subsribes);
+        //     console.log(121,this.name);
+        //     console.trace();
+        // }
     }
     _setDefaultRoot(root) {
         this.defaultRoot = root;
@@ -1007,13 +1042,27 @@ export default class Component {
         this.$cache = cache;
     }
     _setToggler() {
+        if(!this.toggle){
+            return;
+        };
+
+
         let togglers = (this.attribStorage.get("toggle") || []).filter(
             (item) => item._component == this.name
         );
 
         // console.log(711, this.name, this.attribStorage.get("toggle"));
 
-        this.$toggler = new Toggle(this.toggle, this.html, togglers);
+        let toggler = this.toggle;
+
+        // console.log(1056,toggler);
+
+        toggler.setHtml && toggler.setHtml(this.html);
+        toggler.setAttr && toggler.setAttr(togglers);
+        
+
+        // this.$toggler = new Toggle(this.toggle, this.html, togglers);
+        this.$toggler = toggler.handler();
     }
     _setUtils() {
         this.$utils = Utils;
@@ -1053,5 +1102,21 @@ export default class Component {
             on: this.on.bind(this),
             subscribeTo: this.subscribeTo.bind(this),
         };
+    }
+    clone(name, template, opts = {}){
+        let cloned = {};
+
+        for(let key in this.options){
+            if(Object.prototype.hasOwnProperty.call(this.options, key)){
+
+
+                cloned[key] = opts[key]? (cloned[key] = opts[key]) : (cloned[key] = this.options[key]); 
+
+            }
+        };
+
+        // console.log(1088,cloned);
+
+        return new Component(name, template || this.htmlTemplateSelector, cloned);
     }
 }

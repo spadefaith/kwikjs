@@ -21,7 +21,7 @@ async function compileValidator(elModels, component, isStatic, html, storage) {
                 storage.push(compileName, conf);
                 storage.set(id, conf);
             }
-            el.dataset[compileName] = id;
+            // el.dataset[compileName] = id;
         }
     );
 }

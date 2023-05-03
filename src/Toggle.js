@@ -43,6 +43,8 @@ function _toggle(_config, attrToggle, bind, html, bases, storage) {
     // console.log(43, _config, attrToggle, bind, html, bases, storage);
     let config = _check(_config, attrToggle, bind);
 
+    // console.log(46, config);
+
     if (!config) {
         return;
     }
@@ -119,7 +121,6 @@ function _recall(_config, attrToggle, bind, html, storage) {
     if (!config) {
         return;
     }
-    // let {basis='data-name', cls='is-active',  sel} = config;
 
     let basis = config.basis || "data-name";
     let cls = config.cls || "is-active";
@@ -169,186 +170,25 @@ function _get(_config, attrToggle, bind, storage) {
     });
 }
 
-// function(_this){
-//     /*
-//         @params
-//         {basis} - comparison of elements;
-//         {cls} - class to toggle;
-//         {mode} - radio/ switch;
-//         {sel} - siblings selector;
-//         {persist} - bool;
-//     */
-//     let attrToggle = this.$attrib.getWatchItemsByType(this.name, 'toggle');
-
-//     let cl = class{
-//         constructor(bind, bases, html, _this){
-//             this.toggle = _this.toggle;
-//             this.bind = bind;
-//             this.bases = bases;
-//             this.cache = _this.$cache;
-//             this.html = html;
-//         }
-//         check(bind){
-//             let config = this.toggle[bind];
-//             // console.log(this.toggle)
-
-//             if (!config){
-//                 console.error(`${bind} is not found in toggle! choose from ${JSON.stringify(Object.keys(this.toggle))}`);
-//             } else {
-//                 if (attrToggle.length){
-//                     // let {ns} = config;
-//                     let ns = config.ns;
-//                     //toggle is use only for namespacing;
-//                     let f = attrToggle.find(item=>{return item.name == `ns-${ns}`});
-//                     f && (config.sel = `[data-toggle=${f.sel}]`);
-//                 };
-//                 return config;
-//             };
-//         }
-//         _toggle(){
-//             let config = this.check(this.bind);
-//             if(!config){ return;}
-//             // let {basis='data-name', cls='is-active', mode='radio', sel, persist=true} = config;
-
-//             let basis = config.basis || 'data-name';
-//             let cls = config.cls || 'is-active';
-//             let mode = config.mode || 'radio';
-//             let sel = config.sel;
-//             let persist = config.persist == undefined? true : config.persist;
-
-//             let targets = this.html.querySelectorAll(sel);
-//             if (!targets.length) { return; };
-
-//             let prev, next;
-
-//             // console.log(targets);
-
-//             if (targets.length == 1){
-//                 let isbool = typeof this.bases == 'boolean'
-//                 let isforce =  !!this.bases;
-//                 let el =  targets[0];
-//                 // console.log(isbool, isforce)
-//                 if (persist){
-//                     const _forceState = function(el, cls, isforce){
-//                         if(isforce){
-//                             if (el.classList.contains(cls)){
-//                                 el.classList.remove(cls);
-//                             };
-//                         } else {
-//                             if (!el.classList.contains(cls)){
-//                                 el.classList.add(cls);
-//                             };
-//                         }
-//                     };
-//                     if (isbool){
-//                         if (isforce){
-//                             this.cache.createOrUpdate(this.bind, true);
-//                             _forceState(el, cls, true);
-//                         } else {
-//                             this.cache.createOrUpdate(this.bind,false);
-//                             _forceState(el, cls, false);
-//                         }
-//                         el.classList.toggle(cls);
-//                     } else {
-//                         this.cache.createOrUpdate(this.bind, !el.classList.contains(cls));
-//                         el.classList.toggle(cls);
-//                     };
-//                 };
-//             } else {
-//                 for (let t = 0; t < targets.length; t++){
-//                     let el = targets[t];
-//                     let has = el.classList.contains(cls);
-//                     let attr = el.getAttribute(basis);
-
-//                     if (attr == this.bases){
-//                         if (mode == 'switch'){
-//                             el.classList.toggle(cls);
-//                         } else {
-//                             if (!has){ el.classList.add(cls) };
-//                         };
-//                         if (persist){
-//                             this.cache.createOrUpdate(this.bind, attr);
-//                         };
-//                         next = attr;
-//                     } else {
-//                         if(has){
-//                             el.classList.remove(cls)
-//                             prev = el.getAttribute(basis);
-//                         };
-//                     };
-//                 };
-//             }
-//             return {prev, next};
-//         }
-//         _recall(){
-//             let config = this.check(this.bind);
-//             if(!config){ return;}
-//             // let {basis='data-name', cls='is-active',  sel} = config;
-
-//             let basis = config.basis || 'data-name';
-//             let cls = config.cls || 'is-active';
-//             let sel = config.sel;
-
-//             return this.cache.get(this.bind).then(result=>{
-//                 if (!result){
-//                     return result;
-//                 };
-//                 let bases = result;
-//                 let targets = this.html.querySelectorAll(sel);
-//                 if (!targets.length) { return ;};
-//                 if (targets.length == 1){
-//                     let el = targets[0];
-//                     // console.log(bases, this.bind);
-//                     if (bases){
-//                         el.classList.add(cls);
-//                     };
-//                 } else {
-//                     for (let t = 0; t < targets.length; t++){
-//                         let el = targets[t];
-//                         let has = el.classList.contains(cls);
-//                         let attr = el.getAttribute(basis);
-//                         if (attr == bases){
-//                             if (!has){ el.classList.add(cls) };
-//                         };
-//                     };
-//                 };
-//                 return bases;
-//             });
-//         }
-//         _get(){
-//             let config = this.check(this.bind);
-//             if(!config){ return;}
-//             return this.cache.get(this.bind).then(result=>{
-//                 if (!result){
-//                     return result;
-//                 };
-//                 return result;
-//             });
-//         }
-//     };
-//     let fn = (bind, bases)=>{
-//         return new cl(bind, bases, this.html, this)._toggle();
-//     };
-//     fn.recall = (bind)=>{
-//         return new cl(bind, false, this.html, this)._recall();
-//     };
-//     fn.get = (bind)=>{
-//         return new cl(bind, false, this.html, this)._get();
-//     };
-//     return fn;
-// }
 
 export default class {
-    constructor(config, html, attr) {
+    constructor(
+        config, 
+        // html, 
+        // attr
+    ) {
         this.config = config;
-        this.html = html;
-        this.attr = attr;
+        // this.html = html;
+        // this.attr = attr;
         this.cache = new Storage({
             name: "toggler",
             storage: "session",
             child: "object",
         });
 
+
+    }
+    handler(){
         const handler = (bind, active) => {
             // console.log(347, bind, active);
             return this._toggle(bind, active);
@@ -360,6 +200,12 @@ export default class {
             return this._get(bind);
         };
         return handler;
+    }
+    setHtml(html){
+        this.html = html;
+    }
+    setAttr(attr){
+        this.attr = attr;
     }
     _recall(bind) {
         return _recall(this.config, this.attr, bind, this.html, this.cache);

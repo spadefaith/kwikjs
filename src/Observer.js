@@ -49,6 +49,8 @@ export default class Observer {
             return;
         }
 
+ 
+
         for (let _c in _components) {
             if (Object.prototype.hasOwnProperty.call(_components, _c)) {
                 let events = _components[_c];
@@ -56,6 +58,11 @@ export default class Observer {
                 for (let key in events) {
                     if (Object.prototype.hasOwnProperty.call(events, key)) {
                         let event = events[key].bind(ctx);
+
+                        // if(key == "displayTable"){
+                        //     console.log(60,_components);
+
+                        // }
 
                         this.subscribe.push({
                             handler: event,
@@ -77,7 +84,8 @@ export default class Observer {
          *
          */
 
-        // console.log(
+
+        // event == "displayTable" && console.log(
         //     83,
         //     component,
         //     event,
@@ -86,19 +94,40 @@ export default class Observer {
         //         return subscriber.from == component;
         //     })
         // );
+        // event == "displayTable"  && console.log(88,this.subscribe
+        //     .filter((subscriber) => {
+
+        //         return (
+        //             subscriber.from == component &&
+        //             event == subscriber.listentToEvent
+        //         );
+        //     }));
+            // event == "displayTable"  && console.log(97,this.subscribe);
+
+        // console.log(107,event, payload);
+
 
         return Promise.all(
             this.subscribe
                 .filter((subscriber) => {
+
                     return (
                         subscriber.from == component &&
                         event == subscriber.listentToEvent
                     );
                 })
                 .map((subscriber) => {
-                    // console.log(105, subscriber, payload);
+                    // event == "displayTable" && console.log(101, subscriber);
+                    // let listeningComponent = this.components[subscriber.listener];
+                    
+                    // console.log(107,listeningComponent);
+                    // console.log(105,event, subscriber);
                     return subscriber.handler(payload);
                 })
         );
+    }
+
+    _setComponents(components){
+        this.components = components;
     }
 }

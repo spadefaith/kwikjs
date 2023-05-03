@@ -1,15 +1,34 @@
 import Templating from "../Templating";
+import Utils from "../Utils";
 const inputEvent =function(callbacks){
-
     return  function (e){
-
         if(e){
             let target = e.target;
             let value = e.target.value;
-            
-            let attr = target.dataset.validator;
+            this.isLoading();
+            validate(
+                target, 
+                value ,
+                this.templating, 
+                callbacks,
+                this.addSuccessClass.bind(this), 
+                this.addErrorClass.bind(this),
+                this.showError.bind(this)
+            );
+
+            this.doneLoading();
+
+        }
+    }
+}
 
 
+const validate = function(target, value,templating, callbacks,successCallback, errorCallback, showErrorCallback){
+    let attr = target.dataset.validator;
+
+            if(!attr){
+                return;
+            }
             let validator = attr.split(",").reduce((accu, iter)=>{
                 
                 let [key, value] = iter.split("=");
@@ -25,12 +44,9 @@ const inputEvent =function(callbacks){
     
                 return accu;
             },[]);
-    
-    
             if(!validator.length){
                 return
             };
-    
             const attrValues = {};
             let _callbacks = validator.filter(item=>{
                 return callbacks[item.key];
@@ -47,10 +63,10 @@ const inputEvent =function(callbacks){
     
                 return callback;
             });
-    
-    
+
+
             const asy = async function(callbacks){
-                this.isLoading();
+                
                 const validation = await Promise.all(callbacks.map(async (callback)=>{
                     let _attrValues = attrValues[callback.validatorName];
                     
@@ -58,46 +74,37 @@ const inputEvent =function(callbacks){
 
                     
                     if(_attrValues && message.includes("{") && message.includes("}")){
-                        // console.log(61,_attrValues, message);
-                        
+
                         let data = _attrValues.split(",").reduce((accu, iter, index)=>{
                             
                             accu[`${index}`] = iter;
 
                             return accu;
                         }, {});
-                        // console.log(66,data);
-                        message = this.templating.replaceString(data, message);
+
+                        message = templating.replaceString(data, message);
                     }
-
-
-
                     let test = await callback({
-                        target:e.target,
+                        target:target,
                         value
                     },_attrValues);
-                    // console.log(75,test);
+
                     return {test,message};
                 }));
 
-                // console.log(78, validation);
-
                 if(validation.some(val=>!val.test)){
-                   this.addErrorClass(target);
+                    errorCallback(target)
+                   
                    
                 } else {
-                    this.addSuccessClass(target); 
+                    successCallback(target)
+                   
                 }
-                this.showError(target, validation); 
-                this.doneLoading();
+                showErrorCallback(target, validation); 
+               
+                return validation;
             };
-    
-            asy.bind(this)(_callbacks);
-        }
-    
-    
-    }
-
+            return asy(_callbacks);
 }
 
 
@@ -126,11 +133,9 @@ export default class Validator {
     _addEvent(target){
         target.addEventListener("input", inputEvent(this.validation).bind(this));
     }
-
     isLoading(){
         console.log("validating");
     }
-
     doneLoading(){
         console.log("validated");
     }
@@ -182,12 +187,46 @@ export default class Validator {
         
 
         if(hasError){
-            let tag = document.createElement(this.errorTextParent);
+            let tag = document.createElement(this.errorTextTag);
             tag.classList.add(errorTagIdentity);
             tag.innerHTML = messages;
             parent.appendChild(tag);
         };
 
 
+    }
+    async validate(controlSelector){
+        if(!this.form){
+            throw new Error("form is not found");
+        }
+        let controls = Utils.element.querySelectorAllIncluded(this.form, controlSelector);
+
+
+        let val = await Promise.all(controls.map(control=>{
+            let value = control.value;
+            return validate(
+                control, 
+                value,
+                this.templating, 
+                this.validation,
+                this.addSuccessClass.bind(this), 
+                this.addErrorClass.bind(this),
+                this.showError.bind(this)
+            )
+        }));
+
+        return val.map(item=>{
+            if (item){
+                return item.every(item=>{
+                    return item.test;
+                })
+            } else {
+                return true;
+            }
+        }).every(item=>{
+            return item == true;
+        })
+
+        
     }
 } 

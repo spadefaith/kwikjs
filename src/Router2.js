@@ -71,47 +71,85 @@ class Router {
             }
         }
 
-        document.dispatchEvent(
-            (()=>{
-                /**
-                 * make sure that the path is the current path, upon refresh
-                 */
-                let _path = "/";
-                for (let path in routes) {
-                    if (Object.prototype.hasOwnProperty.call(routes, path)) {
-                        if(location.pathname == path){
-                            _path =location.pathname;
-                        }   
-                    }
+
+        ;(()=>{
+
+            
+        /**
+         * for asynchronous routes;
+         * routes is a async function 
+         * this is to trigger the rendering, upon resolving the routes.
+         */
+
+            let _path = "/";
+            for (let path in routes) {
+                if (Object.prototype.hasOwnProperty.call(routes, path)) {
+                    // if(location.pathname == path && path == "/"){
+                    //     // _path = null;
+                    // } else 
+                    
+                    if(this._parsePathName(location.pathname) == path){
+                        _path =this._parsePathName(location.pathname);
+                    }   
+                    
                 }
-                return new CustomEvent("pathChanged", {
-                    detail: {
-                        path: _path,
-                        component: this.name,
-                    },
-                })
-            })()
-        );
+            };
+
+            /**
+             * prevent from dispatching the pathChanged whem the path is equal to "/"
+             */
+            if(!_path){
+                return;
+            };
+
+            document.dispatchEvent(
+                (()=>{
+                    /**
+                     * make sure that the path is the current path, upon refresh
+                     */
+
+
+                    if(location.search){
+                        _path = `${_path}${location.search}`;
+                    }
+
+                    return new CustomEvent("pathChanged", {
+                        detail: {
+                            path: _path,
+                            component: this.name,
+                        },
+                    })
+                })()
+            );
+        })();
 
         return {
             goTo: this.goTo.bind(this),
             goBack: this.goBack.bind(this),
             auth: this.auth.bind(this),
             logout: this.logout.bind(this),
+            updateAuth: this.updateAuth.bind(this),
             login: this.login.bind(this),
             verify: this.verifyAuth.bind(this),
             _getCurrentRoute: this._getCurrentRoute.bind(this),
             ...this.prev,
         };
     }
+    _parsePathName(){
+        let path = location.pathname;
+        let lastIsSlash = path[path.length - 1] == "/";
+        
+        return lastIsSlash ? path.substring(0,path.length-1) : path;
+    }
     _listen() {
         let name = "pathChanged";
+        // alert(name);
         document.addEventListener(name, (e) => {
             let detail = e.detail;
 
             history.pushState(detail, window.title, detail.path);
 
-            // console.log(91, detail);
+
 
             this.parse();
             this.notify().then(() => {
@@ -242,14 +280,28 @@ class Router {
         }
     }
     login(cred, options) {
+
+        const authRedirect = this.updateAuth(cred, options);
+
+
+        // console.log(authRedirect);
+        // alert(authRedirect);
+
+        if(this.prev.name == authRedirect && authRedirect ==  path){
+            //
+        } else {
+            this.goTo(authRedirect, options);
+        };
+    }
+    updateAuth(cred, options){
         let role = cred.role;
         let token = cred.token;
         let data = cred.data;
 
         let path = options && options.path;
-        let config = options && options.config;
 
         // console.log(this.authValidRoute);
+        let authRedirect = "";
 
         if (!role) {
             throw new Error("role is not provided in router.login");
@@ -263,14 +315,20 @@ class Router {
         if (path) {
             //
         } else if (this.authValidRoute && this.authValidRoute[role]) {
-            path = this.authValidRoute[role];
+            authRedirect = this.authValidRoute[role];
+            if(!path){
+                path = authRedirect;
+            }
         } else {
             throw new Error("provide route when login is successful");
         }
-        this.goTo(path, config);
+        this.authUserCred = cred;
+
+        return authRedirect
+        
     }
     auth() {
-        return true;
+        return this.authUserCred;
     }
     logout(isredirect) {
         // alert(this.unauthRoute);
@@ -339,12 +397,17 @@ class Router {
 
             // console.log(286, `${location.origin}${location.pathname}`);
 
+            
+            // console.log(401,hash);
+            // console.log(402,isreplace);
+            // alert("pause");
+
             if (hash == "/") {
                 if (isreplace) {
                     history.replaceState({}, window.title, null);
-                    location.replace(`${location.origin}${location.pathname}`);
+                    location.replace(`${location.origin}${this._parsePathName(location.pathname)}`);
                 } else {
-                    window.location = `${location.origin}${location.pathname}`;
+                    window.location = `${location.origin}${this._parsePathName(location.pathname)}`;
                 }
                 return;
             }
@@ -367,7 +430,6 @@ class Router {
 
             // console.log(159, path);
 
-            // console.log(123, isreplace);
 
             if (isreplace) {
                 let loc = `${location.origin}${path}`;
@@ -383,7 +445,7 @@ class Router {
                     history.replaceState(undefined, undefined, loc);
                 location.replace(loc);
             } else {
-                // console.log(128,path);
+
 
                 var a = document.createElement("a");
                 a.href = `${path}`;
@@ -444,12 +506,28 @@ class Router {
     compile(routes) {
         // console.log(167, this);
         let con = {};
+        let _routes = [];
         for (let key in routes) {
             let config = routes[key];
             // console.log(281, config);
             key = String(key);
+
+            // let u = new URL(`http://localhost${key}`);
+
+            // console.log(478,u.pathname);
+            // if(u.search){
+            //     key = u.pathname;
+            // }
+
+
+            _routes.push(key);
+
+
             const len = key.length;
             let regex = key;
+
+           
+
             if (["404"].includes(key)) {
                 //http errors;
                 const callback = routes[key]; //function
@@ -458,6 +536,8 @@ class Router {
             } else {
                 regex = regex.slice(1);
             }
+
+            // console.log(496, regex, key);
 
             regex = regex.split("/");
             regex = regex.map((item, index) => {
@@ -477,6 +557,9 @@ class Router {
                 }
                 return a;
             });
+            
+
+            // con[key]._path = key;
 
             if (con[key] && con[key].params) {
                 con[key] = {
@@ -508,100 +591,44 @@ class Router {
                     }
                 });
             }
-
+            con[key]._path = key;
             MemCache.object("Router").set(key, con[key]);
         }
-        con.length = Object.keys(routes).length;
-        con.keys = Object.keys(routes);
 
+
+        con.length = _routes.length;
+        con.keys = _routes;
+        
+        // console.log(550,con);
         return con;
     }
+    _cleanPath(path){
+
+    }
     parse() {
-        // console.log(330,this.route);
-        // let hash = window.location.hash,
         let hash = window.location.pathname,
             scheme,
             routeName;
-        if (hash) {
-            // let test1 = hash.includes("#!/");
-            // let test2 = hash.includes("#/");
-            // if (test1 || test2) {
-            //     scheme = true;
-            //     if (test1) {
-            //         hash = hash.split("#!").join("");
-            //     } else if (test2) {
-            //         scheme = true;
-            //         hash = hash.split("#").join("");
-            //     }
-            //     let h = "";
-            //     let p = "";
-            //     for (let i = 0; i < hash.length; i++) {
-            //         let v = hash[i];
-
-            //         if (v == "/" && p == "/") {
-            //             continue;
-            //         }
-            //         if (v == "/" && !p) {
-            //             p = "/";
-            //             h += "/";
-            //         }
-            //         if (v && v != "/") {
-            //             h += v;
-            //             p = "";
-            //         }
-            //     }
-            //     hash = h;
-            //     h = "";
-            // }
-
-            scheme = true;
-
-            let h = "";
-            let p = "";
-            for (let i = 0; i < hash.length; i++) {
-                let v = hash[i];
-
-                if (v == "/" && p == "/") {
-                    continue;
-                }
-                if (v == "/" && !p) {
-                    p = "/";
-                    h += "/";
-                }
-                if (v && v != "/") {
-                    h += v;
-                    p = "";
-                }
-            }
-            hash = h;
-            h = "";
-        } else {
-            hash = "/";
-            scheme = true;
-        }
-        if (!scheme) {
-            return;
-        }
-        const url = new URL(`http://localhost${hash}`);
-        // const {search, pathname:path} = url;
-
-        // console.log(521, url);
+        const url = new URL(location.href);
 
         let search = url.search;
         let path = url.pathname;
 
+
         const keys = this.route.keys;
-        const state = {};
+        let  state = {};
         const PARAMS = {};
         if (search) {
             new URLSearchParams(search).forEach((value, key) => {
                 state[key] = value;
             });
         }
-
+        // console.log(574,state);
         let has = false;
         for (let i = 0; i < keys.length; i++) {
             const route = this.route[keys[i]];
+
+
 
             const regex = route.regex;
             const components = route.components;
@@ -628,12 +655,23 @@ class Router {
                 });
             }
 
+ 
+
             const test = regex.test(path);
 
-            // console.log(507, test, route);
+
+
+            // console.log(path)
+            // console.log(name)
+            // console.log(test)
+            // alert('pause')
 
             // alert(1);
             if (test) {
+                if(route.params){
+                    state = Object.keys(state).length ? state:params;
+                }
+
                 routeName = name;
 
                 this.authenticate(routeName, auth);
@@ -657,6 +695,13 @@ class Router {
 
         this.redirect404(has);
     }
+    _parsePath(str){
+            let _u = new URL(`http://localhost${str}`);
+            return {
+                pathname: _u.pathname,
+                search: _u.search,
+            }
+    }
     redirect404(has) {
         // console.log("redirect404", !has);
         if (!has) {
@@ -669,9 +714,9 @@ class Router {
                 // console.log(470,path);
 
                 let origin = location.origin;
-                let pathname = location.pathname;
+                let pathname = this._parsePathName(location.pathname);
 
-                console.log(617, `${origin}${pathname}`);
+                // console.log(617, `${origin}${pathname}`);
                 if (this.route[path]) {
                     // console.log(1);
                     if (path == "/") {

@@ -70,6 +70,9 @@ var Observer = class {
       })
     );
   }
+  _setComponents(components) {
+    this.components = components;
+  }
 };
 
 // src/Utils/UtilsIs.js
@@ -1100,7 +1103,7 @@ var Piece = class {
     return this.el;
   }
   remove() {
-    return remove(this.el);
+    return remove(this.el.el || this.el);
   }
   unRequired() {
     Utils_default.element.unRequired(this.el);
@@ -1566,7 +1569,6 @@ async function compileValidator(elModels, component, isStatic, html, storage2) {
         storage2.push(compileName, conf);
         storage2.set(id, conf);
       }
-      el.dataset[compileName] = id;
     }
   );
 }
@@ -2670,15 +2672,15 @@ function _get(_config, attrToggle, bind, storage2) {
   });
 }
 var Toggle_default = class {
-  constructor(config, html, attr) {
+  constructor(config) {
     this.config = config;
-    this.html = html;
-    this.attr = attr;
     this.cache = new StorageKit({
       name: "toggler",
       storage: "session",
       child: "object"
     });
+  }
+  handler() {
     const handler = (bind, active) => {
       return this._toggle(bind, active);
     };
@@ -2689,6 +2691,12 @@ var Toggle_default = class {
       return this._get(bind);
     };
     return handler;
+  }
+  setHtml(html) {
+    this.html = html;
+  }
+  setAttr(attr) {
+    this.attr = attr;
   }
   _recall(bind) {
     return _recall(this.config, this.attr, bind, this.html, this.cache);
@@ -2717,64 +2725,79 @@ var inputEvent = function(callbacks) {
     if (e) {
       let target = e.target;
       let value = e.target.value;
-      let attr = target.dataset.validator;
-      let validator = attr.split(",").reduce((accu, iter) => {
-        let [key, value2] = iter.split("=");
-        if (value2 && value2.includes(",")) {
-          value2 = value2.split(",");
-        } else {
-          value2 = value2 ? value2.trim() : true;
-        }
-        ;
-        accu.push({ key: key.trim(), value: value2 });
-        return accu;
-      }, []);
-      if (!validator.length) {
-        return;
-      }
-      ;
-      const attrValues = {};
-      let _callbacks = validator.filter((item) => {
-        return callbacks[item.key];
-      }).map((item) => {
-        let { key, value: value2 } = item;
-        attrValues[key] = value2;
-        let conf = callbacks[key];
-        let callback = conf.handler;
-        let errorMessage = conf.error;
-        callback.errorMessage = errorMessage;
-        callback.validatorName = key;
-        return callback;
-      });
-      const asy = async function(callbacks2) {
-        this.isLoading();
-        const validation = await Promise.all(callbacks2.map(async (callback) => {
-          let _attrValues = attrValues[callback.validatorName];
-          let message = callback.errorMessage;
-          if (_attrValues && message.includes("{") && message.includes("}")) {
-            let data = _attrValues.split(",").reduce((accu, iter, index) => {
-              accu[`${index}`] = iter;
-              return accu;
-            }, {});
-            message = this.templating.replaceString(data, message);
-          }
-          let test = await callback({
-            target: e.target,
-            value
-          }, _attrValues);
-          return { test, message };
-        }));
-        if (validation.some((val) => !val.test)) {
-          this.addErrorClass(target);
-        } else {
-          this.addSuccessClass(target);
-        }
-        this.showError(target, validation);
-        this.doneLoading();
-      };
-      asy.bind(this)(_callbacks);
+      this.isLoading();
+      validate(
+        target,
+        value,
+        this.templating,
+        callbacks,
+        this.addSuccessClass.bind(this),
+        this.addErrorClass.bind(this),
+        this.showError.bind(this)
+      );
+      this.doneLoading();
     }
   };
+};
+var validate = function(target, value, templating, callbacks, successCallback, errorCallback, showErrorCallback) {
+  let attr = target.dataset.validator;
+  if (!attr) {
+    return;
+  }
+  let validator = attr.split(",").reduce((accu, iter) => {
+    let [key, value2] = iter.split("=");
+    if (value2 && value2.includes(",")) {
+      value2 = value2.split(",");
+    } else {
+      value2 = value2 ? value2.trim() : true;
+    }
+    ;
+    accu.push({ key: key.trim(), value: value2 });
+    return accu;
+  }, []);
+  if (!validator.length) {
+    return;
+  }
+  ;
+  const attrValues = {};
+  let _callbacks = validator.filter((item) => {
+    return callbacks[item.key];
+  }).map((item) => {
+    let { key, value: value2 } = item;
+    attrValues[key] = value2;
+    let conf = callbacks[key];
+    let callback = conf.handler;
+    let errorMessage = conf.error;
+    callback.errorMessage = errorMessage;
+    callback.validatorName = key;
+    return callback;
+  });
+  const asy = async function(callbacks2) {
+    const validation = await Promise.all(callbacks2.map(async (callback) => {
+      let _attrValues = attrValues[callback.validatorName];
+      let message = callback.errorMessage;
+      if (_attrValues && message.includes("{") && message.includes("}")) {
+        let data = _attrValues.split(",").reduce((accu, iter, index) => {
+          accu[`${index}`] = iter;
+          return accu;
+        }, {});
+        message = templating.replaceString(data, message);
+      }
+      let test = await callback({
+        target,
+        value
+      }, _attrValues);
+      return { test, message };
+    }));
+    if (validation.some((val) => !val.test)) {
+      errorCallback(target);
+    } else {
+      successCallback(target);
+    }
+    showErrorCallback(target, validation);
+    return validation;
+  };
+  return asy(_callbacks);
 };
 var Validator = class {
   constructor(form, validation, opts) {
@@ -2836,16 +2859,46 @@ var Validator = class {
     }
     ;
     if (hasError) {
-      let tag = document.createElement(this.errorTextParent);
+      let tag = document.createElement(this.errorTextTag);
       tag.classList.add(errorTagIdentity);
       tag.innerHTML = messages;
       parent.appendChild(tag);
     }
     ;
   }
+  async validate(controlSelector) {
+    if (!this.form) {
+      throw new Error("form is not found");
+    }
+    let controls = Utils_default.element.querySelectorAllIncluded(this.form, controlSelector);
+    let val = await Promise.all(controls.map((control) => {
+      let value = control.value;
+      return validate(
+        control,
+        value,
+        this.templating,
+        this.validation,
+        this.addSuccessClass.bind(this),
+        this.addErrorClass.bind(this),
+        this.showError.bind(this)
+      );
+    }));
+    return val.map((item) => {
+      if (item) {
+        return item.every((item2) => {
+          return item2.test;
+        });
+      } else {
+        return true;
+      }
+    }).every((item) => {
+      return item == true;
+    });
+  }
 };
 
 // src/Component.js
+var ElementStorage = MemCache_default.element;
 async function createElement(template) {
   if (!template) {
     throw new Error(`the template for ${this.name} is not found with.`);
@@ -2869,9 +2922,11 @@ function attachStaticMethod(root, handlers, callback) {
 var Component = class {
   constructor(name, template, options) {
     this.name = name;
+    this.htmlTemplateSelector = template;
     this._parseOptions({ template, ...options });
     this.$templating = new Templating_default();
     this.await = {};
+    this.onInit = options.onInit;
     this.options = options;
     this.renderqueue = options.renderqueue;
     this.customData = options.data && Utils_default.is.isObject(options.data) || {};
@@ -2905,6 +2960,9 @@ var Component = class {
     this.store = {};
   }
   async _create(opts) {
+    if (this._isCreated) {
+      return;
+    }
     let { handlers, subscribe, root } = opts;
     await this._bindHandlers(handlers, this);
     let _subsribes = await this._bindSubscribe(subscribe, this);
@@ -2934,6 +2992,7 @@ var Component = class {
       default:
         break;
     }
+    this._isCreated = true;
   }
   async render(options = {}) {
     try {
@@ -2981,9 +3040,7 @@ var Component = class {
       let el = this.$templating.createElement(this.customData, this.html.getElement());
       this._recacheFromTemplating(el);
       this.html.replaceDataSrc();
-      console.log("to be connected");
       this.template.isTemplate && this.html.appendTo(root, cleaned);
-      console.log("already connected");
       await this._replaceRouter();
       await this._findRef();
       await this._findContainer();
@@ -2993,7 +3050,7 @@ var Component = class {
       await this._addEvent();
       multiple && await this._hardReset();
     } catch (err) {
-      console.log(281, err);
+      console.log(281, this.name, err);
     }
   }
   async _getDataOnRender() {
@@ -3235,7 +3292,6 @@ var Component = class {
       }
       element.cake_component = this.name;
     }
-    console.log(this.name, "parsing template");
     this._cloneTemplate(element);
     await this._parseHTML(this.html, this.template.isStatic);
     await this._cacheTemplate(element);
@@ -3357,10 +3413,11 @@ var Component = class {
           cb = event;
         }
       }
-      if (!this._eventStorage.get("__cake__events")) {
-        this._eventStorage.set("__cake__events", {});
+      let cache = new ElementStorage(el);
+      if (!cache.get("__cake__events")) {
+        cache.set("__cake__events", {});
       }
-      let store = this._eventStorage.get("__cake__events");
+      let store = cache.get("__cake__events");
       if (!store[cb] && el) {
         Utils_default.element.addEventListener(
           el,
@@ -3375,7 +3432,7 @@ var Component = class {
           true
         );
         store[cb] = true;
-        this._eventStorage.set("__cake__events", store);
+        cache.set("__cake__events", store);
       }
     });
   }
@@ -3402,6 +3459,7 @@ var Component = class {
           await this._findRef();
           await this._findContainer();
           await this._setToggler();
+          await this._addEvent();
           res();
         }, 100);
       });
@@ -3437,10 +3495,17 @@ var Component = class {
     this.$cache = cache;
   }
   _setToggler() {
+    if (!this.toggle) {
+      return;
+    }
+    ;
     let togglers = (this.attribStorage.get("toggle") || []).filter(
       (item) => item._component == this.name
     );
-    this.$toggler = new Toggle_default(this.toggle, this.html, togglers);
+    let toggler = this.toggle;
+    toggler.setHtml && toggler.setHtml(this.html);
+    toggler.setAttr && toggler.setAttr(togglers);
+    this.$toggler = toggler.handler();
   }
   _setUtils() {
     this.$utils = Utils_default;
@@ -3477,6 +3542,16 @@ var Component = class {
       on: this.on.bind(this),
       subscribeTo: this.subscribeTo.bind(this)
     };
+  }
+  clone(name, template, opts = {}) {
+    let cloned = {};
+    for (let key in this.options) {
+      if (Object.prototype.hasOwnProperty.call(this.options, key)) {
+        cloned[key] = opts[key] ? cloned[key] = opts[key] : cloned[key] = this.options[key];
+      }
+    }
+    ;
+    return new Component(name, template || this.htmlTemplateSelector, cloned);
   }
 };
 
@@ -3516,9 +3591,9 @@ var Router = class {
     this.persist();
     this._listen();
     this.components = /* @__PURE__ */ new Map();
-    for (let path in routes) {
-      if (Object.prototype.hasOwnProperty.call(routes, path)) {
-        let conf = routes[path];
+    for (let path2 in routes) {
+      if (Object.prototype.hasOwnProperty.call(routes, path2)) {
+        let conf = routes[path2];
         if (conf.name != "404") {
           let components = conf.components;
           components.forEach((component) => {
@@ -3527,34 +3602,51 @@ var Router = class {
         }
       }
     }
-    document.dispatchEvent(
-      (() => {
-        let _path = "/";
-        for (let path in routes) {
-          if (Object.prototype.hasOwnProperty.call(routes, path)) {
-            if (location.pathname == path) {
-              _path = location.pathname;
-            }
+    ;
+    (() => {
+      let _path = "/";
+      for (let path2 in routes) {
+        if (Object.prototype.hasOwnProperty.call(routes, path2)) {
+          if (this._parsePathName(location.pathname) == path2) {
+            _path = this._parsePathName(location.pathname);
           }
         }
-        return new CustomEvent("pathChanged", {
-          detail: {
-            path: _path,
-            component: this.name
+      }
+      ;
+      if (!_path) {
+        return;
+      }
+      ;
+      document.dispatchEvent(
+        (() => {
+          if (location.search) {
+            _path = `${_path}${location.search}`;
           }
-        });
-      })()
-    );
+          return new CustomEvent("pathChanged", {
+            detail: {
+              path: _path,
+              component: this.name
+            }
+          });
+        })()
+      );
+    })();
     return {
       goTo: this.goTo.bind(this),
       goBack: this.goBack.bind(this),
       auth: this.auth.bind(this),
       logout: this.logout.bind(this),
+      updateAuth: this.updateAuth.bind(this),
       login: this.login.bind(this),
       verify: this.verifyAuth.bind(this),
       _getCurrentRoute: this._getCurrentRoute.bind(this),
       ...this.prev
     };
+  }
+  _parsePathName() {
+    let path2 = location.pathname;
+    let lastIsSlash = path2[path2.length - 1] == "/";
+    return lastIsSlash ? path2.substring(0, path2.length - 1) : path2;
   }
   _listen() {
     let name = "pathChanged";
@@ -3570,11 +3662,11 @@ var Router = class {
       });
     });
   }
-  getComponent(name, path) {
+  getComponent(name, path2) {
     if (this.componentConf && this.componentConf[name]) {
       let rerender = this.componentConf[name].rerender;
       if (rerender) {
-        name = rerender.includes(path) ? name : null;
+        name = rerender.includes(path2) ? name : null;
       }
     }
     return name ? this.components.get(name) : null;
@@ -3641,11 +3733,19 @@ var Router = class {
     }
   }
   login(cred, options) {
+    const authRedirect = this.updateAuth(cred, options);
+    if (this.prev.name == authRedirect && authRedirect == path) {
+    } else {
+      this.goTo(authRedirect, options);
+    }
+    ;
+  }
+  updateAuth(cred, options) {
     let role = cred.role;
     let token = cred.token;
     let data = cred.data;
-    let path = options && options.path;
-    let config = options && options.config;
+    let path2 = options && options.path;
+    let authRedirect = "";
     if (!role) {
       throw new Error("role is not provided in router.login");
     }
@@ -3655,16 +3755,20 @@ var Router = class {
     if (!data) {
       throw new Error("data is not provided in router.login");
     }
-    if (path) {
+    if (path2) {
     } else if (this.authValidRoute && this.authValidRoute[role]) {
-      path = this.authValidRoute[role];
+      authRedirect = this.authValidRoute[role];
+      if (!path2) {
+        path2 = authRedirect;
+      }
     } else {
       throw new Error("provide route when login is successful");
     }
-    this.goTo(path, config);
+    this.authUserCred = cred;
+    return authRedirect;
   }
   auth() {
-    return true;
+    return this.authUserCred;
   }
   logout(isredirect) {
     if (this.prev.name == this.unauthRoute()) {
@@ -3718,13 +3822,13 @@ var Router = class {
       if (hash == "/") {
         if (isreplace) {
           history.replaceState({}, window.title, null);
-          location.replace(`${location.origin}${location.pathname}`);
+          location.replace(`${location.origin}${this._parsePathName(location.pathname)}`);
         } else {
-          window.location = `${location.origin}${location.pathname}`;
+          window.location = `${location.origin}${this._parsePathName(location.pathname)}`;
         }
         return;
       }
-      let path;
+      let path2;
       hash = hash.slice(1);
       if (params.toString().includes("Object")) {
         let p = "";
@@ -3732,20 +3836,20 @@ var Router = class {
           p += `${key}=${params[key]}&`;
         }
         params = p;
-        path = `/${hash}?${params}`;
+        path2 = `/${hash}?${params}`;
       } else {
-        path = `/${hash}`;
+        path2 = `/${hash}`;
       }
       if (hash == "/") {
-        path = "";
+        path2 = "";
       }
       if (isreplace) {
-        let loc = `${location.origin}${path}`;
+        let loc = `${location.origin}${path2}`;
         Utils_default.is.isChrome() && !Utils_default.is.isFirefox() && history.replaceState(void 0, void 0, loc);
         location.replace(loc);
       } else {
         var a = document.createElement("a");
-        a.href = `${path}`;
+        a.href = `${path2}`;
         Utils_default.is.isChrome() && !Utils_default.is.isFirefox() && history.pushState(void 0, void 0, a.href);
         a.click();
       }
@@ -3793,9 +3897,11 @@ var Router = class {
   }
   compile(routes) {
     let con = {};
+    let _routes = [];
     for (let key in routes) {
       let config = routes[key];
       key = String(key);
+      _routes.push(key);
       const len = key.length;
       let regex = key;
       if (["404"].includes(key)) {
@@ -3850,46 +3956,22 @@ var Router = class {
           }
         });
       }
+      con[key]._path = key;
       MemCache_default.object("Router").set(key, con[key]);
     }
-    con.length = Object.keys(routes).length;
-    con.keys = Object.keys(routes);
+    con.length = _routes.length;
+    con.keys = _routes;
     return con;
+  }
+  _cleanPath(path2) {
   }
   parse() {
     let hash = window.location.pathname, scheme, routeName;
-    if (hash) {
-      scheme = true;
-      let h = "";
-      let p = "";
-      for (let i = 0; i < hash.length; i++) {
-        let v = hash[i];
-        if (v == "/" && p == "/") {
-          continue;
-        }
-        if (v == "/" && !p) {
-          p = "/";
-          h += "/";
-        }
-        if (v && v != "/") {
-          h += v;
-          p = "";
-        }
-      }
-      hash = h;
-      h = "";
-    } else {
-      hash = "/";
-      scheme = true;
-    }
-    if (!scheme) {
-      return;
-    }
-    const url = new URL(`http://localhost${hash}`);
+    const url = new URL(location.href);
     let search = url.search;
-    let path = url.pathname;
+    let path2 = url.pathname;
     const keys = this.route.keys;
-    const state = {};
+    let state = {};
     const PARAMS = {};
     if (search) {
       new URLSearchParams(search).forEach((value, key) => {
@@ -3909,7 +3991,7 @@ var Router = class {
       const onrender = route.onrender;
       const controller = route.controller;
       if (params) {
-        let _path = String(path);
+        let _path = String(path2);
         _path = _path.slice(1);
         _path = _path.split("/");
         Object.entries(params).forEach((param) => {
@@ -3920,15 +4002,18 @@ var Router = class {
           }
         });
       }
-      const test = regex.test(path);
+      const test = regex.test(path2);
       if (test) {
+        if (route.params) {
+          state = Object.keys(state).length ? state : params;
+        }
         routeName = name;
         this.authenticate(routeName, auth);
         this.prev = {
           components,
           params: PARAMS,
           state,
-          path,
+          path: path2,
           name,
           prev: this.prev,
           overlay,
@@ -3942,33 +4027,39 @@ var Router = class {
     }
     this.redirect404(has);
   }
+  _parsePath(str) {
+    let _u = new URL(`http://localhost${str}`);
+    return {
+      pathname: _u.pathname,
+      search: _u.search
+    };
+  }
   redirect404(has) {
     if (!has) {
       if (this.route["404"]) {
-        let path = this.route["404"].callback();
+        let path2 = this.route["404"].callback();
         let origin = location.origin;
-        let pathname = location.pathname;
-        console.log(617, `${origin}${pathname}`);
-        if (this.route[path]) {
-          if (path == "/") {
-            path = `${origin}${pathname}`;
+        let pathname = this._parsePathName(location.pathname);
+        if (this.route[path2]) {
+          if (path2 == "/") {
+            path2 = `${origin}${pathname}`;
           } else {
             if (pathname.slice(-1) == "/") {
-              path = `${origin}${pathname}#!${path}`;
+              path2 = `${origin}${pathname}#!${path2}`;
             } else {
-              path = `${origin}${pathname}/#!${path}`;
+              path2 = `${origin}${pathname}/#!${path2}`;
             }
-            path = `${origin}${pathname}`;
+            path2 = `${origin}${pathname}`;
           }
-          location.replace(path);
-        } else if (!!path && !this.route[path]) {
+          location.replace(path2);
+        } else if (!!path2 && !this.route[path2]) {
           if (origin.slice(-1) == "/") {
-            if (path[0] == "/") {
-              path = path.slice(1);
+            if (path2[0] == "/") {
+              path2 = path2.slice(1);
             }
           }
-          path = `${origin}${path}`;
-          location.replace(path);
+          path2 = `${origin}${path2}`;
+          location.replace(path2);
         }
       }
     } else {
@@ -3978,7 +4069,7 @@ var Router = class {
     if (this.prev) {
       const components = [...this.prev.components];
       const state = this.prev.state;
-      const path = this.prev.path;
+      const path2 = this.prev.path;
       const name = this.prev.name;
       const overlay = this.prev.overlay;
       const onrender = this.prev.onrender || {};
@@ -4005,7 +4096,7 @@ var Router = class {
                   let componentName = component;
                   let isunload = this.getComponent(
                     component,
-                    path
+                    path2
                   );
                   new Promise((res2) => {
                     let _component = component;
@@ -4089,7 +4180,7 @@ var Router = class {
         throw new Error(
           `some of the component in ${JSON.stringify(
             components
-          )} in path ${path} of router is not found, make sure the it is created`
+          )} in path ${path2} of router is not found, make sure the it is created`
         );
       }
     }
@@ -4143,7 +4234,7 @@ var Router = class {
     if (this.prev && this.prev.prev) {
       let components = this.prev.prev.components;
       let state = this.prev.prev.state;
-      let path = this.prev.prev.path;
+      let path2 = this.prev.prev.path;
       let name = this.prev.prev.name;
       let overlay2 = this.prev.prev.overlay;
       let destroyPromise = Promise.resolve();
@@ -4173,8 +4264,8 @@ var Router = class {
     }
     return promise;
   }
-  pushState(data, notused, path) {
-    window.history.pushState(data, notused, path);
+  pushState(data, notused, path2) {
+    window.history.pushState(data, notused, path2);
     let promise = Promise.resolve();
     this.clear();
     return promise.then(() => {
@@ -4294,7 +4385,7 @@ var Custom_default = () => {
 };
 
 // src/index.js
-var ElementStorage = MemCache_default.element;
+var ElementStorage2 = MemCache_default.element;
 Custom_default();
 var Cake = class {
   constructor(opts) {
@@ -4302,10 +4393,16 @@ var Cake = class {
     this.name = opts.name;
     this.defaultRoot = opts.defaultRoot;
     this.components = {};
+    this.globalScope = new StorageKit({
+      name: `${this.name}/globalScope`,
+      storage: "session",
+      child: "object"
+    });
     this.excludeQuery = [".cake-template"];
     this.router = opts.router;
     this.Observer = new Observer(this.name);
     this.templateCompile = opts.templateCompiler;
+    this.initSubscriber = [];
     this._register();
   }
   // Component(name, template, opts = {}) {
@@ -4318,7 +4415,11 @@ var Cake = class {
   async _register() {
     this._registerRouter().then(() => {
       this._registerComponents(this.opts.components || []);
-      this.opts.init && this.opts.init.bind(this)();
+      if (this.opts.init) {
+        const initHandler = this.opts.init.bind(this);
+        initHandler();
+      }
+      ;
       this._mountRouter();
     });
   }
@@ -4330,7 +4431,11 @@ var Cake = class {
         if (!["Function", "AsyncFunction"].includes(
           config.constructor.name
         )) {
-          this._registerComponents(config.components);
+          if (config.components) {
+            this._registerComponents(config.components);
+          } else if (config.page) {
+            this._registerPage(config.page);
+          }
         }
       }
     }
@@ -4339,46 +4444,81 @@ var Cake = class {
       this.hasRouter = true;
     }
   }
-  _registerComponents(components) {
-    try {
-      components.forEach((component) => {
-        component._setTemplateCompile(this.templateCompile);
-        component._setParent(this.name);
-        component._setObserver(this.Observer);
-        component._setDefaultRoot(this.defaultRoot);
-        component._setStorage(
-          new StorageKit({
-            name: "cache",
-            storage: "session",
-            child: "object"
-          })
-        );
-        component.options.store && Utils_default.is.isFunction(component.options.store) && component.options.store.bind(component.store)(component);
-        component.options.utils && component.options.utils.bind(component.utils)(component);
-        component._setGlobalScope(
-          new StorageKit({
-            name: "globalScope",
-            storage: "session",
-            child: "object"
-          })
-        );
-        this.components[component.name] = component;
-      });
-    } catch (err) {
-      console.log(err);
-    }
-  }
   _mountRouter() {
     Object.keys(this.components).forEach((name) => {
       let component = this.components[name];
       component._setRouter(this._Router);
     });
   }
+  _registerComponents(components) {
+    try {
+      components.forEach((component) => {
+        if (!this.components[component.name]) {
+          component.onInit && this.initSubscriber.push(component.onInit.bind(component));
+          component._setTemplateCompile(this.templateCompile);
+          component._setParent(this.name);
+          component._setObserver(this.Observer);
+          component._setDefaultRoot(this.defaultRoot);
+          component._setStorage(
+            new StorageKit({
+              name: `${this.name}/${component.name}/cache`,
+              storage: "session",
+              child: "object"
+            })
+          );
+          component.options.store && Utils_default.is.isFunction(component.options.store) && component.options.store.bind(component.store)(component);
+          component.options.utils && component.options.utils.bind(component.utils)(component);
+          component._setGlobalScope(this.globalScope);
+          this.components[component.name] = component;
+        }
+      });
+      this.Observer._setComponents(this.components);
+    } catch (err) {
+      console.log(err);
+    }
+  }
+  _registerPageComponents(components) {
+    try {
+      components.forEach((component) => {
+        component.setTemplateCompile(this.templateCompile);
+        component.setParent(this.name);
+        component.setDefaultRoot(this.defaultRoot);
+        this.components[component.name] = component;
+      });
+    } catch (err) {
+      console.log(err);
+    }
+  }
+  _registerPage(page) {
+    try {
+      if (page.type != "page") {
+        throw new Error("not an instance of page");
+      }
+      ;
+      this._registerPageComponents(page.components);
+    } catch (err) {
+      console.log(158, err);
+    }
+  }
+  _clone(name, component) {
+    return component.clone(name);
+  }
+  $notify(e, callback) {
+    this.initSubscriber.forEach((handler) => {
+      handler(e);
+    });
+    try {
+      callback && callback();
+    } catch (err) {
+      console.log(err);
+    }
+  }
 };
 export {
   Component,
-  ElementStorage,
+  ElementStorage2 as ElementStorage,
   Observer,
   Router2_default as Router,
+  Toggle_default as Toggle,
   Cake as default
 };

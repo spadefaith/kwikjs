@@ -7,13 +7,15 @@ import Custom from "./Custom";
 import Storage from "./Storage";
 
 import MemCache from "./MemCache";
-// import Toggle from "./Toggle";
+import Toggle from "./Toggle";
 
 import Utils from "./Utils";
 
+
+
 const ElementStorage = MemCache.element;
 
-export { Observer, Component, Router, ElementStorage };
+export { Observer, Component, Router, ElementStorage , Toggle};
 
 Custom();
 
@@ -28,6 +30,13 @@ export default class Cake {
         this.components = {};
 
 
+        this.globalScope = new Storage({
+            name: `${this.name}/globalScope`,
+            storage: "session",
+            child: "object",
+        });
+
+
 
         this.excludeQuery = [".cake-template"];
 
@@ -37,8 +46,12 @@ export default class Cake {
 
         this.templateCompile = opts.templateCompiler;
 
+        this.initSubscriber = [];
+
 
         this._register();
+
+        // this._isReady = {};
         
     }
     // Component(name, template, opts = {}) {
@@ -53,7 +66,14 @@ export default class Cake {
         .then(()=>{
             // console.log(49, this.opts.components);
             this._registerComponents(this.opts.components || []);
-            this.opts.init && this.opts.init.bind(this)();
+            if(this.opts.init){
+                const initHandler = this.opts.init.bind(this);
+
+
+
+
+                initHandler();
+            };
 
 
             this._mountRouter();
@@ -71,7 +91,15 @@ export default class Cake {
                         config.constructor.name
                     )
                 ) {
-                    this._registerComponents(config.components);
+
+                    // Object.assign(Object.create(Object.getPrototypeOf(original)), original);
+
+                    
+                    if(config.components){
+                        this._registerComponents(config.components);
+                    } else if (config.page){
+                        this._registerPage(config.page);
+                    }
                 }
             }
         }
@@ -83,35 +111,62 @@ export default class Cake {
        
     }
 
+    _mountRouter() {
+        Object.keys(this.components).forEach((name) => {
+            let component = this.components[name];
+            // console.log(112,name, this._Router);
+            component._setRouter(this._Router);
+        });
+    }
+
     _registerComponents(components) {
         // console.log(79, components);
+
         try {
             components.forEach((component) => {
-                component._setTemplateCompile(this.templateCompile);
+
+                if(!this.components[component.name]){
+
+                    component.onInit && this.initSubscriber.push(component.onInit.bind(component));
+
+                    component._setTemplateCompile(this.templateCompile);
     
-                component._setParent(this.name);
-                component._setObserver(this.Observer);
-                component._setDefaultRoot(this.defaultRoot);
-                component._setStorage(
-                    new Storage({
-                        name: "cache",
-                        storage: "session",
-                        child: "object",
-                    })
-                );
-                component.options.store && Utils.is.isFunction(component.options.store) &&
-                    component.options.store.bind(component.store)(component);
-                component.options.utils &&
-                    component.options.utils.bind(component.utils)(component);
-                component._setGlobalScope(
-                    new Storage({
-                        name: "globalScope",
-                        storage: "session",
-                        child: "object",
-                    })
-                );
+                    component._setParent(this.name);
+                    component._setObserver(this.Observer);//set one observer
+                    component._setDefaultRoot(this.defaultRoot);
+                    component._setStorage(
+                        new Storage({
+                            name: `${this.name}/${component.name}/cache`,
+                            storage: "session",
+                            child: "object",
+                        })
+                    );
+                    component.options.store && Utils.is.isFunction(component.options.store) &&
+                        component.options.store.bind(component.store)(component);
+                    component.options.utils &&
+                        component.options.utils.bind(component.utils)(component);
+                    component._setGlobalScope(this.globalScope);
     
-                // component._setToggler(new Toggle(component.toggle));
+        
+        
+                    this.components[component.name] = component;
+                }
+
+
+            });
+
+            this.Observer._setComponents(this.components);
+        } catch(err){
+            console.log(err);
+        }
+    }
+    _registerPageComponents(components){
+        try {
+            components.forEach((component) => {
+                component.setTemplateCompile(this.templateCompile);
+    
+                component.setParent(this.name);
+                component.setDefaultRoot(this.defaultRoot);
     
                 this.components[component.name] = component;
             });
@@ -120,11 +175,32 @@ export default class Cake {
         }
     }
 
-    _mountRouter() {
-        Object.keys(this.components).forEach((name) => {
-            let component = this.components[name];
-            // console.log(112,name, this._Router);
-            component._setRouter(this._Router);
-        });
+    _registerPage(page){
+        try{
+            if(page.type != "page"){
+                throw new Error("not an instance of page");
+            };
+    
+            this._registerPageComponents(page.components);
+        } catch(err){
+            console.log(158,err);
+        }
     }
+
+    _clone(name, component){
+        return component.clone(name);
+    }
+
+    $notify(e, callback){
+        this.initSubscriber.forEach(handler=>{
+            handler(e);
+        });
+
+        try {
+            callback && (callback());
+        } catch(err){
+            console.log(err);
+        }
+    }
+
 }

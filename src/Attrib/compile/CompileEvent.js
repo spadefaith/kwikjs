@@ -10,6 +10,8 @@ async function compileEvent(
 ) {
     let compileName = "event";
 
+    // component == "TriggerList" && console.log(13,"compiled", elModels);
+
     await loop(
         compileName,
         elModels,

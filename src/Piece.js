@@ -13,6 +13,7 @@ function loop(elements, callback) {
 }
 
 function remove(element) {
+    // console.log(16,element);
     let fg = document.createDocumentFragment();
     element && fg.appendChild(element);
     // el  && el.remove();
@@ -127,7 +128,7 @@ export default class Piece {
         return this.el;
     }
     remove() {
-        return remove(this.el);
+        return remove(this.el.el || this.el);
     }
     unRequired() {
         Utils.element.unRequired(this.el);
