@@ -9,6 +9,8 @@ import MemCache from "./MemCache";
 
 import Templating from "./Templating";
 
+import Storage from "./Storage";
+
 import Toggle from "./Toggle";
 
 import Validator from "./Form/Validator";
@@ -127,6 +129,18 @@ export default class Component {
 
         this.scopeHistory = {};
         this.store = {};
+
+
+        this.$storage = function(type = "session"){
+            if(!["session","local"].includes(type)){
+                throw new Error("storage could be either, local or session");
+            };
+            return new Storage({
+                name: `${this.name}/storage`,
+                storage: type,
+                child: "object",
+            })
+        };
     }
     async _create(opts) {
 
@@ -687,7 +701,7 @@ export default class Component {
 
         // this.name == "nav" && console.log(489, this.original.el.innerHTML);
         // this.html = await this.original.cloneNode();
-        await this.html.remove(this.name);
+        this.html && await this.html.remove(this.name);
         await this._eventStorage.destroy();
         this._reUseTemplate();
 
@@ -729,8 +743,10 @@ export default class Component {
     }
 
     async _reUseTemplate(){
-        const cloned = await this.original.cloneNode();
-        this.html = new Piece(cloned);
+        if(this.original){
+            const cloned = await this.original.cloneNode();
+            this.html = new Piece(cloned);
+        }
     }
 
     async _parseHTML(html, isStatic, isReInject) {

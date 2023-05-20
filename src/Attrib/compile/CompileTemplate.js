@@ -12,7 +12,9 @@ async function compileTemplate(elModels, component, isStatic, html, storage) {
 
             let bind = el.dataset[compileName];
 
-            // component == "static_form" && console.log(13, id, el, bind);
+            // component == "BillingSummary" && console.log(13, id, el, bind, el.innerHTML);
+
+
 
             const conf = {
                 _component: component,

@@ -104,7 +104,8 @@ async function compile(el, component, isStatic = false, storage, keys) {
     let r = [];
 
     // component == "form" && console.log(68, el.innerHTML, component, query);
-    // component == "toolbar" && console.log(68, el.innerHTML);
+    // console.log(68, el.innerHTML);
+    // component == "BillingSummary" && console.log(el.outerHTML);
 
     let prev = storage.get();
     storage.destroy();

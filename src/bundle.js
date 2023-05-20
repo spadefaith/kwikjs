@@ -2958,6 +2958,17 @@ var Component = class {
     this._eventStorage = MemCache_default.object(`${this.name}-cache`);
     this.scopeHistory = {};
     this.store = {};
+    this.$storage = function(type = "session") {
+      if (!["session", "local"].includes(type)) {
+        throw new Error("storage could be either, local or session");
+      }
+      ;
+      return new StorageKit({
+        name: `${this.name}/storage`,
+        storage: type,
+        child: "object"
+      });
+    };
   }
   async _create(opts) {
     if (this._isCreated) {
@@ -3297,7 +3308,7 @@ var Component = class {
     await this._cacheTemplate(element);
   }
   async _hardReset() {
-    await this.html.remove(this.name);
+    this.html && await this.html.remove(this.name);
     await this._eventStorage.destroy();
     this._reUseTemplate();
     return true;
@@ -3327,8 +3338,10 @@ var Component = class {
     }
   }
   async _reUseTemplate() {
-    const cloned = await this.original.cloneNode();
-    this.html = new Piece(cloned);
+    if (this.original) {
+      const cloned = await this.original.cloneNode();
+      this.html = new Piece(cloned);
+    }
   }
   async _parseHTML(html, isStatic, isReInject) {
     await this.$attrib.inject(html, this.name, isStatic, isReInject);
