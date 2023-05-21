@@ -144,7 +144,36 @@ function isBoolean(ctx) {
     return typeof ctx == "boolean";
 }
 
+function isUndefined(ctx) {
+    return ctx == undefined;
+}
+
+function isNull(ctx) {
+    return ctx == undefined;
+}
+
+function isFalsy(ctx) {
+    return !ctx;
+}
+
+function isTruthy(ctx) {
+    return !!ctx;
+}
+function isURL(str){
+    try {
+        let url = new URL(str);
+        return true;
+    } catch(err){
+        return false;
+    }
+}
+
 export {
+    isURL,
+    isUndefined,
+    isNull,
+    isFalsy,
+    isTruthy,
     browser,
     device,
     isAndroid,

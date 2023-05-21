@@ -4,76 +4,11 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// src/Observer.js
-var Observer = class {
-  constructor(name) {
-    this.name = name;
-    this.handlers = {};
-    this.subscribe = [];
-  }
-  _handlers(callback = {}, ctx) {
-    if (!Object.keys(callback).length) {
-      return;
-    }
-    if (!ctx.handlers) {
-      ctx.handlers = {};
-    }
-    for (let key in callback) {
-      if (Object.prototype.hasOwnProperty.call(callback, key)) {
-        let fn = callback[key].bind(ctx);
-        let listeners = function() {
-          return this.subscribe.filter((item) => {
-            return item.from == ctx.name;
-          });
-        }.bind(this);
-        this.handlers[key] = async function() {
-          let _listeners = listeners();
-          let payload = await fn();
-          await Promise.all(
-            _listeners.map((fn2) => {
-              return fn2.handler(payload);
-            })
-          );
-          return payload;
-        }.bind(ctx);
-        ctx.handlers[key] = this.handlers[key];
-      }
-    }
-  }
-  _subscriber(_components = {}, ctx) {
-    if (!Object.keys(_components).length) {
-      return;
-    }
-    for (let _c in _components) {
-      if (Object.prototype.hasOwnProperty.call(_components, _c)) {
-        let events = _components[_c];
-        for (let key in events) {
-          if (Object.prototype.hasOwnProperty.call(events, key)) {
-            let event = events[key].bind(ctx);
-            this.subscribe.push({
-              handler: event,
-              listentToEvent: key,
-              from: _c,
-              listener: ctx.name
-            });
-          }
-        }
-      }
-    }
-  }
-  async broadcast(component, event, payload) {
-    return Promise.all(
-      this.subscribe.filter((subscriber) => {
-        return subscriber.from == component && event == subscriber.listentToEvent;
-      }).map((subscriber) => {
-        return subscriber.handler(payload);
-      })
-    );
-  }
-  _setComponents(components) {
-    this.components = components;
-  }
-};
+// src/Utils/UtilsFunction.js
+var UtilsFunction_exports = {};
+__export(UtilsFunction_exports, {
+  recurse: () => recurse
+});
 
 // src/Utils/UtilsIs.js
 var UtilsIs_exports = {};
@@ -88,17 +23,22 @@ __export(UtilsIs_exports, {
   isDesktop: () => isDesktop,
   isEdge: () => isEdge,
   isElement: () => isElement,
+  isFalsy: () => isFalsy,
   isFirefox: () => isFirefox,
   isFunction: () => isFunction,
   isHTMLCollection: () => isHTMLCollection,
   isIE: () => isIE,
   isIOS: () => isIOS,
   isNodeList: () => isNodeList,
+  isNull: () => isNull,
   isNumber: () => isNumber,
   isObject: () => isObject,
   isOpera: () => isOpera,
   isSafari: () => isSafari,
   isString: () => isString,
+  isTruthy: () => isTruthy,
+  isURL: () => isURL,
+  isUndefined: () => isUndefined,
   typeOf: () => typeOf
 });
 function browser() {
@@ -204,6 +144,156 @@ function isFunction(ctx) {
 function isBoolean(ctx) {
   return typeof ctx == "boolean";
 }
+function isUndefined(ctx) {
+  return ctx == void 0;
+}
+function isNull(ctx) {
+  return ctx == void 0;
+}
+function isFalsy(ctx) {
+  return !ctx;
+}
+function isTruthy(ctx) {
+  return !!ctx;
+}
+function isURL(str) {
+  try {
+    let url = new URL(str);
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+// src/Utils/UtilsFunction.js
+function recurse(array, callback) {
+  let l = array.length;
+  let index = 0;
+  let cache = [];
+  return new Promise((res, rej) => {
+    try {
+      const _recurse = (callback2) => {
+        if (index < l) {
+          let item = array[index];
+          const called = callback2(item, index);
+          if (isUndefined(called)) {
+            res(cache);
+          } else if (called.then) {
+            called.then((result) => {
+              index += 1;
+              cache.push(result);
+              _recurse(callback2);
+            });
+          } else {
+            index += 1;
+            cache.push(called);
+            _recurse(callback2);
+          }
+        } else {
+          res(cache);
+        }
+      };
+      _recurse(callback);
+    } catch (err) {
+      rej(err);
+    }
+  });
+}
+
+// src/MemCache/Object.js
+var storage = {};
+function Object_default(name) {
+  if (!storage[name]) {
+    storage[name] = {};
+  }
+  return {
+    set(key, value) {
+      storage[name][key] = value;
+      return true;
+    },
+    push(key, value) {
+      if (!storage[name][key]) {
+        storage[name][key] = [];
+      }
+      storage[name][key].push(value);
+    },
+    get(key) {
+      if (key) {
+        return storage[name][key];
+      } else {
+        return storage[name];
+      }
+    },
+    getAll() {
+      return storage[name];
+    },
+    destroy(key) {
+      if (key) {
+        delete storage[name][key];
+      } else {
+        storage[name] = {};
+      }
+      return true;
+    }
+  };
+}
+
+// src/MemCache/Element.js
+var Element_default = class {
+  constructor(el) {
+    this.el = el;
+    if (!this.el) {
+      this.el = document.createElement("div");
+      el.dataset.cache = true;
+      document.head.append(el);
+    }
+    if (!this.el.__storage) {
+      this.el.__storage = {};
+    }
+  }
+  set(key, value) {
+    this.el.__storage[key] = value;
+  }
+  get(key) {
+    return key == void 0 ? this.el.__storage : this.el.__storage[key];
+  }
+  remove(key) {
+    if (key == void 0) {
+      this.el.__storage = {};
+    } else {
+      delete this.el.__storage[key];
+    }
+  }
+};
+
+// src/MemCache/index.js
+var MemCache_default = {
+  object: Object_default,
+  element: Element_default
+};
+
+// src/Observer/Observer.js
+var Observer = class {
+  constructor() {
+    this.store = MemCache_default.object("__observer");
+  }
+  async broadcast(event, payload) {
+    let subscribers = this.store.get(event);
+    if (subscribers && subscribers.length) {
+      return recurse(subscribers, (handler, index) => {
+        return handler(payload);
+      });
+    }
+  }
+  register(event, handler) {
+    if (!this.store.get(event)) {
+      this.store.set(event, []);
+    }
+    let subscribers = this.store.get(event);
+    subscribers.push(handler);
+    this.store.set(event, subscribers);
+  }
+};
 
 // src/Utils/UtilsElement.js
 var UtilsElement_exports = {};
@@ -443,77 +533,6 @@ __export(UtilsString_exports, {
   toProper: () => toProper,
   uuid: () => uuid
 });
-
-// src/MemCache/Object.js
-var storage = {};
-function Object_default(name) {
-  if (!storage[name]) {
-    storage[name] = {};
-  }
-  return {
-    set(key, value) {
-      storage[name][key] = value;
-      return true;
-    },
-    push(key, value) {
-      if (!storage[name][key]) {
-        storage[name][key] = [];
-      }
-      storage[name][key].push(value);
-    },
-    get(key) {
-      if (key) {
-        return storage[name][key];
-      } else {
-        return storage[name];
-      }
-    },
-    destroy(key) {
-      if (key) {
-        delete storage[name][key];
-      } else {
-        storage[name] = {};
-      }
-      return true;
-    }
-  };
-}
-
-// src/MemCache/Element.js
-var Element_default = class {
-  constructor(el) {
-    this.el = el;
-    if (!this.el) {
-      this.el = document.createElement("div");
-      el.dataset.cache = true;
-      document.head.append(el);
-    }
-    if (!this.el.__storage) {
-      this.el.__storage = {};
-    }
-  }
-  set(key, value) {
-    this.el.__storage[key] = value;
-  }
-  get(key) {
-    return key == void 0 ? this.el.__storage : this.el.__storage[key];
-  }
-  remove(key) {
-    if (key == void 0) {
-      this.el.__storage = {};
-    } else {
-      delete this.el.__storage[key];
-    }
-  }
-};
-
-// src/MemCache/index.js
-var MemCache_default = {
-  object: Object_default,
-  element: Element_default
-};
-
-// src/Utils/UtilsString.js
 function toHyphen(string) {
   const name = `to-hyphen_${string}`;
   const containerName = "toHyphen";
@@ -650,36 +669,6 @@ function splitBySpace(string, fn) {
 }
 function escapeRegExp(text) {
   return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
-}
-
-// src/Utils/UtilsFunction.js
-var UtilsFunction_exports = {};
-__export(UtilsFunction_exports, {
-  recurse: () => recurse
-});
-function recurse(array, callback) {
-  let l = array.length;
-  let index = 0;
-  let cache = [];
-  return new Promise((res, rej) => {
-    try {
-      const _recurse = (callback2) => {
-        if (index < l) {
-          let item = array[index];
-          callback2(item, index).then((result) => {
-            index += 1;
-            cache.push(result);
-            _recurse(callback2);
-          });
-        } else {
-          res(cache);
-        }
-      };
-      _recurse(callback);
-    } catch (err) {
-      rej(err);
-    }
-  });
 }
 
 // src/Utils/UtilsTemplate.js
@@ -1026,6 +1015,91 @@ var Utils_default = {
   function: UtilsFunction_exports,
   template: UtilsTemplate_exports,
   form: UtilsForm_exports
+};
+
+// src/Observer/index.js
+var Observer2 = class {
+  constructor(name) {
+    this.name = name;
+    this.handlers = {};
+    this.subscribe = [];
+    this.observer = new Observer();
+  }
+  // _handlers(callback = {}, ctx) {
+  //     console.log("here");
+  //     if (!Object.keys(callback).length) {
+  //         return;
+  //     }
+  //     if (!ctx.handlers) {
+  //         ctx.handlers = {};
+  //     }
+  //     for (let key in callback) {
+  //         if (Object.prototype.hasOwnProperty.call(callback, key)) {
+  //             let fn = callback[key].bind(ctx);
+  //             let listeners = function () {
+  //                 console.log("here");
+  //                 return this.subscribe.filter((item) => {
+  //                     return item.from == ctx.name;
+  //                 });
+  //             }.bind(this);
+  //             this.handlers[key] = async function () {
+  //                 let _listeners = listeners();
+  //                 let payload = await fn();
+  //                 await Promise.all(
+  //                     _listeners.map((fn) => {
+  //                         return fn.handler(payload);
+  //                     })
+  //                 );
+  //                 return payload;
+  //             }.bind(ctx);
+  //             ctx.handlers[key] = async function () {
+  //                 let _listeners = listeners();
+  //                 let payload = await fn();
+  //                 console.log(49,_listeners);
+  //                 await recurse(_listeners,async (fn, index)=>{
+  //                     console.log(50,fn);
+  //                     return fn.handler(payload);
+  //                 });
+  //                 // await Promise.all(
+  //                 //     _listeners.map((fn) => {
+  //                 //         return fn.handler(payload);
+  //                 //     })
+  //                 // );
+  //                 return payload;
+  //             }.bind(ctx);
+  //         }
+  //     }
+  //     // console.log(40, this.handlers);
+  // }
+  _subscriber(_components = {}, ctx) {
+    if (!Object.keys(_components).length) {
+      return;
+    }
+    for (let _c in _components) {
+      if (Object.prototype.hasOwnProperty.call(_components, _c)) {
+        let events = _components[_c];
+        for (let eventName in events) {
+          if (Object.prototype.hasOwnProperty.call(events, eventName)) {
+            let event = events[eventName];
+            let bindEvent = event.bind(ctx);
+            this.observer.register(`${_c}-${eventName}`, bindEvent);
+          }
+        }
+      }
+    }
+  }
+  async broadcast(component, event, payload) {
+    const key = `${component}-${event}`;
+    let subscriber = this.observer.store.get(key);
+    if (subscriber && Utils_default.is.isArray(subscriber)) {
+      return await recurse(subscriber, (callback, index) => {
+        return callback(payload);
+      });
+    }
+  }
+  _setComponents(components) {
+    this.components = components;
+  }
 };
 
 // src/Piece.js
@@ -2183,10 +2257,10 @@ function ObjectForEach(obj, fn) {
 function ObjectMerge(obj, value, key) {
   obj = Object.assign(obj, { [key]: value });
 }
-function isNull(d) {
+function isNull2(d) {
   return d === null;
 }
-function isUndefined(d) {
+function isUndefined2(d) {
   return d === void 0;
 }
 function isArray2(_obj) {
@@ -2269,13 +2343,13 @@ function create(storage2, data) {
 function createOrUpdate(storage2, data) {
   var has = hasItem(storage2, data);
   if (typeOf2(storage2) == "array") {
-    if (!isNull(has)) {
+    if (!isNull2(has)) {
       storage2[has] = data;
     } else {
       storage2.includes(data);
     }
   } else if (typeOf2(storage2) == "object") {
-    if (isNull(has)) {
+    if (isNull2(has)) {
       if (isObject2(data)) {
         ObjectForEach(data, function(value, key) {
           ObjectMerge(storage2, value, key);
@@ -2320,7 +2394,7 @@ function remove2(storage2, id) {
       return !test;
     });
   }
-  if (isNull(has)) {
+  if (isNull2(has)) {
     return false;
   }
 }
@@ -2333,7 +2407,7 @@ function get(storage2, id) {
     }
   } else if (type == "object") {
     return Object.filter(storage2, function(value, key) {
-      var test = !isUndefined(id[key]) && id[key] == value;
+      var test = !isUndefined2(id[key]) && id[key] == value;
       return test;
     });
   } else if (type == "array") {
@@ -2473,7 +2547,7 @@ var StorageKit = class {
   has(id) {
     var storage2 = this.storage.open();
     var has = hasItem(storage2, id);
-    return isNull(has) ? false : has;
+    return isNull2(has) ? false : has;
   }
   get(id, quick) {
     if (quick) {
@@ -2962,13 +3036,13 @@ var Component = class {
       if (!["session", "local"].includes(type)) {
         throw new Error("storage could be either, local or session");
       }
-      ;
       return new StorageKit({
         name: `${this.name}/storage`,
         storage: type,
         child: "object"
       });
     };
+    this.$cache = MemCache_default.object(`${this.name}/cache`);
   }
   async _create(opts) {
     if (this._isCreated) {
@@ -2977,10 +3051,9 @@ var Component = class {
     let { handlers, subscribe, root } = opts;
     await this._bindHandlers(handlers, this);
     let _subsribes = await this._bindSubscribe(subscribe, this);
-    await this.$observer._handlers(handlers, this);
     await this.$observer._subscriber(_subsribes, this);
     this.fire = (event, payload) => {
-      this.$observer.broadcast(this.name, event, payload);
+      return this.$observer.broadcast(this.name, event, payload);
     };
     attachStaticMethod(
       this.fire,
@@ -3140,7 +3213,7 @@ var Component = class {
       routes = Object.keys(routes).reduce((accu, key) => {
         let val = routes[key];
         let name = val.name;
-        accu[name] = key;
+        accu[name] = { path: key, name: val.name };
         return accu;
       }, {});
       routers.forEach((conf) => {
@@ -3148,15 +3221,16 @@ var Component = class {
         let bind = conf.bind;
         let el = this.html.querySelectorIncluded(`[data-route=${sel}]`);
         if (el) {
-          let _path = routes[bind];
-          if (_path) {
-            el.setAttribute("href", _path);
+          let { path, name } = routes[bind] || {};
+          if (path) {
+            el.setAttribute("href", path);
             el.addEventListener("click", (e) => {
               e.preventDefault();
               document.dispatchEvent(
                 new CustomEvent("pathChanged", {
                   detail: {
-                    path: _path,
+                    path,
+                    name,
                     component: this.name
                   }
                 })
@@ -3498,20 +3572,21 @@ var Component = class {
     this.defaultRoot = root;
     this.root = this.root || this.defaultRoot;
   }
-  _setGlobalScope(globalScope) {
-    this.$globalScope = globalScope;
+  _setGlobalStorage(globalStorage) {
+    this.$globalStorage = globalStorage;
+  }
+  _setGlobalCache(globalCache) {
+    this.$globalCache = globalCache;
   }
   _setRouter(router) {
     this.$router = router;
   }
   _setStorage(cache) {
-    this.$cache = cache;
   }
   _setToggler() {
     if (!this.toggle) {
       return;
     }
-    ;
     let togglers = (this.attribStorage.get("toggle") || []).filter(
       (item) => item._component == this.name
     );
@@ -3568,740 +3643,398 @@ var Component = class {
   }
 };
 
-// src/Router2.js
-var Router = class {
-  constructor(name, routes, options = {}) {
-    this.name = name;
-    this.options = options;
-    this.unauthRoute = () => null;
-    this.componentConf = null;
-    this.authValidRoute = null;
-    this.loaderOptions = options.loader;
-    this.hooks = [];
-    this.authConfig = function() {
-      if (!this.options) {
+// src/Router/RouterHistory.js
+var RouterHistory = class {
+  constructor(name, routes, options) {
+    this.config = { routes, options };
+    this.state = {};
+    this._parseOptions();
+    this._parseRoutes();
+    this.onConnected();
+    this.onPopState();
+    this._listen();
+  }
+  async goTo(name, opts = {}) {
+    const isUrl = Utils_default.is.isURL(name);
+    if (isUrl) {
+      const { origin, search } = this._parseUrl(name, true);
+      let state = {};
+      if (search) {
+        if (opts.params && search) {
+          state = { ...search, ...opts.params };
+        } else if (opts.params && !search) {
+          state = opts.params;
+        } else if (!opts.params && search) {
+          state = search;
+        }
+      }
+      let newPath = this._addParams(origin, state);
+      if (opts.replace) {
+        location.replace(newPath);
+      } else {
+        location.href = newPath;
+      }
+    } else if (!isUrl) {
+      let state = {};
+      let { path, config } = await this._getConfigByName(name);
+      if (path) {
+        let parsed = this._parseUrl(path);
+        let search = parsed.search;
+        if (search) {
+          if (opts.params && search) {
+            state = { ...search, ...opts.params };
+          } else if (opts.params && !search) {
+            state = opts.params;
+          } else if (!opts.params && search) {
+            state = search;
+          }
+        }
+        let newPath = this._addParams(path, state);
+        let { components, auth, name: name2, display, strict } = config;
+        let isAuth = await this._isAuth(auth);
+        if (!isAuth) {
+          console.error("unauthorized");
+          return;
+        }
+        if (opts.replace) {
+          history.replaceState({ auth, path, name: name2, display, strict, state }, opts.title || "", newPath);
+        } else {
+          history.pushState({ auth, path, name: name2, display, strict, state }, opts.title || "", newPath);
+        }
+        this._updateProperty({ path, auth, name: name2, display, strict, state });
+        await this._destroyComponent(this.components);
+        await this._renderComponent(components);
+      } else {
+        throw new Error(`route name ${name} is not found`);
+      }
+    }
+  }
+  async goBack(conf) {
+    let state = history.state;
+    let name, auth, config;
+    if (state && state.name) {
+      name = state.name;
+      auth = state.auth;
+      let found = await this._getConfigByName(name);
+      if (found) {
+        config = found.config;
+      }
+    } else if (conf && conf.name) {
+      let found = await this._getConfigByName(conf.name);
+      if (found) {
+        config = found.config;
+        name = config.name;
+        auth = config.auth;
+      }
+    } else if (conf && conf.path) {
+      let found = await this._getConfigByPath(conf.path);
+      if (found) {
+        config = found.config;
+        name = config.name;
+        auth = config.auth;
+      }
+    }
+    if (name && auth != void 0) {
+      let isAuth = await this._isAuth(auth);
+      if (!isAuth) {
+        console.error("unauthorized");
         return;
       }
-      const confAuth = this.options.auth;
-      const confComponents = this.options.components;
-      if (confComponents) {
-        this.componentConf = confComponents;
+      await this._destroyComponent(this.components);
+      await this._renderComponent(config.components);
+    } else {
+      console.error("no history state found");
+    }
+  }
+  _parseUrl(path, isUrl) {
+    let urlClass = null;
+    if (isUrl) {
+      try {
+        urlClass = new URL(path);
+      } catch (err) {
+        console.error(`path ${path} is not a URL`);
       }
-      if (confAuth && confAuth.verify) {
-        this.isAuthorized = confAuth.verify;
-        this.unauthRoute = confAuth["401"] && confAuth["401"].constructor.name == "Function" ? confAuth["401"] : () => confAuth["401"];
+    } else {
+      let url = `http://localhost${path}`;
+      urlClass = new URL(url);
+    }
+    let o = {};
+    if (urlClass) {
+      o.pathname = urlClass.pathname;
+      o.origin = urlClass.origin;
+      if (urlClass.search) {
+        let params = new URLSearchParams(urlClass.search);
+        o.search = {};
+        for (let [key, value] of params.entries()) {
+          o.search[key] = value;
+        }
+        o.searchParams = params.toString();
       }
-      if (confAuth && confAuth.valid) {
-        this.authValidRoute = confAuth.valid;
+    }
+    return o;
+  }
+  _addParams(path, params) {
+    let searchParams = new URLSearchParams();
+    for (let key in params) {
+      if (Object.prototype.hasOwnProperty.call(params, key)) {
+        searchParams.append(key, params[key]);
+      }
+    }
+    return `${path}?${searchParams.toString()}`;
+  }
+  async _getConfigByName(name, parsedOnly = false) {
+    let config = {};
+    let path = null;
+    let routes = Object.keys(this.config.routes);
+    for (let i = 0; i < routes.length; i++) {
+      let pt = routes[i];
+      let cf = this.config.routes[pt];
+      if (cf.name == name) {
+        config = cf;
+        path = pt;
+        break;
+      }
+    }
+    if (path) {
+      return { path, config };
+    } else if (this.notFound && !parsedOnly) {
+      let url = await this.notFound();
+      try {
+        let urlClass = new URL(url);
+        window.location = url;
+      } catch (err) {
+        await this.goTo(url);
       }
       return null;
-    }.bind(this)();
-    this.authRedirectRoute = {};
-    this.route = this.compile(routes);
-    this.prev = null;
-    this.overlayComponents = options.components;
-    this.watch();
-    this.persist();
-    this._listen();
-    this.components = /* @__PURE__ */ new Map();
-    for (let path2 in routes) {
-      if (Object.prototype.hasOwnProperty.call(routes, path2)) {
-        let conf = routes[path2];
-        if (conf.name != "404") {
-          let components = conf.components;
-          components.forEach((component) => {
-            this.components.set(component.name, component);
-          });
+    }
+    return null;
+  }
+  async _getConfigByPath(_path, parsedOnly = false) {
+    let { search, pathname, searchParams } = this._parseUrl(_path);
+    let config = {};
+    let path = null;
+    let routes = Object.keys(this.config.routes);
+    for (let i = 0; i < routes.length; i++) {
+      let pt = routes[i];
+      let parseRoute = this._parseUrl(pt);
+      let cf = this.config.routes[pt];
+      let { strict } = cf;
+      if (strict || strict == void 0) {
+        if (_path == pt) {
+          config = cf;
+          path = _path;
+          break;
+        } else {
+          if (pathname == parseRoute.pathname) {
+            let hasAtleastContainsParamsOfRoute = false;
+            for (let key in parseRoute.search) {
+              if (Object.prototype.hasOwnProperty.call(parseRoute.search, key)) {
+                if (search[key] == parseRoute.search[key]) {
+                  hasAtleastContainsParamsOfRoute = true;
+                }
+              }
+            }
+            if (hasAtleastContainsParamsOfRoute) {
+              config = cf;
+              path = _path;
+              break;
+            }
+          }
+        }
+      } else if (strict == false) {
+        if (pathname == parseRoute.pathname) {
+          config = cf;
+          path = _path;
+          break;
         }
       }
     }
-    ;
-    (() => {
-      let _path = "/";
-      for (let path2 in routes) {
-        if (Object.prototype.hasOwnProperty.call(routes, path2)) {
-          if (this._parsePathName(location.pathname) == path2) {
-            _path = this._parsePathName(location.pathname);
+    if (path) {
+      return { path, config, search };
+    } else if (this.notFound && !parsedOnly) {
+      let url = await this.notFound();
+      try {
+        let urlClass = new URL(url);
+        window.location = url;
+      } catch (err) {
+        await this.goTo(url);
+      }
+      return null;
+    }
+    return null;
+  }
+  _parseOptions() {
+    let options = this.config.options || {};
+    this.notFound = options.notFound;
+    this.unAuthorized = options.unAuthorized;
+    this.verify = options.verify;
+  }
+  _parseRoutes() {
+    let paths = Object.keys(this.config.routes);
+    for (let i = 0; i < paths.length; i++) {
+      let path = paths[i];
+      let conf = this.config.routes[path];
+      conf._path = path;
+      MemCache_default.object("Router").set(path, conf);
+    }
+  }
+  clean() {
+    this.user = {};
+  }
+  async _isAuth(auth) {
+    try {
+      if (auth == true || Utils_default.is.isArray(auth)) {
+        if (this.verify) {
+          let request = await this.verify();
+          if (request.status) {
+            this.user = request.data;
+          } else {
+            throw new Error(request.message || "error verifying auth");
           }
+        } else {
+          throw new Error("verify auth callback is required");
         }
       }
-      ;
-      if (!_path) {
-        return;
-      }
-      ;
-      document.dispatchEvent(
-        (() => {
-          if (location.search) {
-            _path = `${_path}${location.search}`;
+      if (auth == true) {
+        if (this.verify) {
+          let user = this.user;
+          if (user) {
+            return true;
+          } else {
+            throw new Error("router has no user, the route requires a user.");
           }
-          return new CustomEvent("pathChanged", {
-            detail: {
-              path: _path,
-              component: this.name
-            }
-          });
-        })()
-      );
-    })();
-    return {
-      goTo: this.goTo.bind(this),
-      goBack: this.goBack.bind(this),
-      auth: this.auth.bind(this),
-      logout: this.logout.bind(this),
-      updateAuth: this.updateAuth.bind(this),
-      login: this.login.bind(this),
-      verify: this.verifyAuth.bind(this),
-      _getCurrentRoute: this._getCurrentRoute.bind(this),
-      ...this.prev
-    };
+        } else {
+          throw new Error("verify callback is required if the route is auth");
+        }
+      } else if (auth == false) {
+        return true;
+      } else if (Utils_default.is.isArray(auth)) {
+        let user = this.user;
+        if (user) {
+          let role = user.role;
+          if (auth.includes(role)) {
+            return true;
+          } else {
+            throw new Error(`role ${role} is not found in allowed roles`);
+          }
+        } else {
+          throw new Error("router has no user, the route requires a user.");
+        }
+      }
+    } catch (err) {
+      console.log(err);
+      return false;
+    }
   }
-  _parsePathName() {
-    let path2 = location.pathname;
-    let lastIsSlash = path2[path2.length - 1] == "/";
-    return lastIsSlash ? path2.substring(0, path2.length - 1) : path2;
+  _updateProperty(obj) {
+    for (let key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        if (key == "state") {
+          if (!Utils_default.is.isObject(obj[key])) {
+            obj[key] = {};
+          } else {
+            this[key] = obj[key];
+          }
+        } else {
+          this[key] = obj[key];
+        }
+      }
+    }
+  }
+  async _renderComponent(components) {
+    try {
+      await Utils_default.function.recurse(components || [], async (component, index) => {
+        if (component) {
+          await component.render.bind(component)();
+          if (component.await.isConnected) {
+            await component.await.isConnected;
+          }
+        }
+      });
+      await this._updateProperty({ components });
+      return true;
+    } catch (err) {
+      console.log(err);
+      return false;
+    }
+  }
+  async _destroyComponent(components) {
+    try {
+      return await Utils_default.function.recurse(components || [], async (component, index) => {
+        if (component) {
+          if (component?.fire?.destroy) {
+            await component.fire.destroy();
+            await component.await.destroy;
+          } else {
+            return component.reset();
+          }
+        }
+      });
+    } catch (err) {
+      console.log(err);
+      return false;
+    }
+  }
+  async onConnected() {
+    let { pathname, search } = window.location;
+    let state = history.state;
+    if (state && state.name && state.components) {
+      this._updateProperty({
+        name: state.name,
+        auth: state.auth,
+        components: state.components,
+        display: state.display,
+        state: state.state
+      });
+      return await this._renderComponent(state.components);
+    } else {
+      let config = {};
+      let path = null;
+      let found = await this._getConfigByPath(search ? `${pathname}${search}` : pathname);
+      if (found) {
+        path = found.path;
+        config = found.config;
+        this._updateProperty({
+          path,
+          strict: config.strict
+        });
+      }
+      if (path && config.components) {
+        this._updateProperty({
+          name: config.name,
+          auth: config.auth,
+          components: config.components,
+          display: config.display,
+          state: found.search
+        });
+        return await this._renderComponent(config.components);
+      }
+    }
+  }
+  onPopState() {
+    window.addEventListener("popstate", (event) => {
+      let { pathname, search } = this._parseUrl();
+      this.goBack({ path: pathname });
+    });
+  }
+  _getCurrentRoute() {
+    return {
+      components: this.components,
+      state: this.state,
+      path: this.path,
+      name: this.name,
+      display: this.display
+    };
   }
   _listen() {
     let name = "pathChanged";
     document.addEventListener(name, (e) => {
       let detail = e.detail;
-      history.pushState(detail, window.title, detail.path);
-      this.parse();
-      this.notify().then(() => {
-        return this.clear().then(() => {
-          return this.navigate().then(() => {
-          });
-        });
-      });
+      this.goTo(detail.name);
     });
-  }
-  getComponent(name, path2) {
-    if (this.componentConf && this.componentConf[name]) {
-      let rerender = this.componentConf[name].rerender;
-      if (rerender) {
-        name = rerender.includes(path2) ? name : null;
-      }
-    }
-    return name ? this.components.get(name) : null;
-  }
-  verifyAuth(token) {
-    return this.isAuthorized();
-  }
-  async authenticate(name, isauth) {
-    let authUser = Utils_default.is.isArray(isauth) && isauth.length && isauth || null;
-    if (!(isauth == true || authUser)) {
-      return;
-    }
-    const initialize = this.unauthRoute() == name;
-    if (this.unauthRoute()) {
-      try {
-        const isverified = await this.verifyAuth();
-        if (!isverified) {
-          alert("provide verify function.");
-          throw new Error("provide verify function.");
-        }
-        if (authUser) {
-          if (!authUser.includes(isverified.role)) {
-            let result = await this.logout();
-            if (result && result.isredirected) {
-            } else {
-              console.log("reload");
-            }
-            return;
-          }
-        }
-        if (![1, 0].includes(Number(isverified.status) || 2)) {
-          alert("verify function should be {status:1 || 0, role:''}");
-          throw new Error(
-            "verify function should be {status:1 || 0, role:''}"
-          );
-        }
-        if (isverified.status == 0) {
-          await this.logout();
-          console.log("reload");
-        }
-        if (isverified.status == 1) {
-          if (initialize) {
-            const role = isverified.role;
-            const route = this.authRedirectRoute[role];
-            if (route) {
-              const name2 = route.name;
-              this.goTo(name2);
-            }
-          } else {
-          }
-        } else {
-          if (initialize) {
-          } else {
-            await this.logout();
-          }
-        }
-      } catch (err) {
-        alert(JSON.stringify(err.message || err));
-        if (initialize) {
-        } else {
-          await this.logout();
-        }
-      }
-    }
-  }
-  login(cred, options) {
-    const authRedirect = this.updateAuth(cred, options);
-    if (this.prev.name == authRedirect && authRedirect == path) {
-    } else {
-      this.goTo(authRedirect, options);
-    }
-    ;
-  }
-  updateAuth(cred, options) {
-    let role = cred.role;
-    let token = cred.token;
-    let data = cred.data;
-    let path2 = options && options.path;
-    let authRedirect = "";
-    if (!role) {
-      throw new Error("role is not provided in router.login");
-    }
-    if (!token) {
-      throw new Error("token is not provided in router.login");
-    }
-    if (!data) {
-      throw new Error("data is not provided in router.login");
-    }
-    if (path2) {
-    } else if (this.authValidRoute && this.authValidRoute[role]) {
-      authRedirect = this.authValidRoute[role];
-      if (!path2) {
-        path2 = authRedirect;
-      }
-    } else {
-      throw new Error("provide route when login is successful");
-    }
-    this.authUserCred = cred;
-    return authRedirect;
-  }
-  auth() {
-    return this.authUserCred;
-  }
-  logout(isredirect) {
-    if (this.prev.name == this.unauthRoute()) {
-      return Promise.resolve();
-    }
-    if (isredirect) {
-    } else {
-      return new Promise((res, rej) => {
-        try {
-          this.goTo(
-            this.unauthRoute(),
-            { replace: true },
-            function(result) {
-              res(result);
-            }
-          );
-        } catch (err) {
-          alert("unauthorized");
-          console.log(269, err);
-          rej(err);
-        }
-      });
-    }
-  }
-  goTo(routeName, config = {}, callback) {
-    try {
-      if (!routeName) {
-        throw new Error("route name is required, provide route name");
-      }
-      let routes = this.route;
-      let params = config.params || {};
-      let isreplace = config.replace;
-      let hash = null;
-      const raw = Object.entries(routes);
-      for (let i = 0; i < raw.length; i++) {
-        const route = raw[i][0];
-        const config2 = raw[i][1];
-        const name = config2.name;
-        if (name == routeName) {
-          hash = route;
-          break;
-        }
-      }
-      if (!hash) {
-        if (routeName && routeName.includes("://")) {
-          location.href = routeName;
-          return callback && callback({ isredirected: true });
-        }
-        throw new Error(`${routeName} is not found in routes`);
-      }
-      if (hash == "/") {
-        if (isreplace) {
-          history.replaceState({}, window.title, null);
-          location.replace(`${location.origin}${this._parsePathName(location.pathname)}`);
-        } else {
-          window.location = `${location.origin}${this._parsePathName(location.pathname)}`;
-        }
-        return;
-      }
-      let path2;
-      hash = hash.slice(1);
-      if (params.toString().includes("Object")) {
-        let p = "";
-        for (let key in params) {
-          p += `${key}=${params[key]}&`;
-        }
-        params = p;
-        path2 = `/${hash}?${params}`;
-      } else {
-        path2 = `/${hash}`;
-      }
-      if (hash == "/") {
-        path2 = "";
-      }
-      if (isreplace) {
-        let loc = `${location.origin}${path2}`;
-        Utils_default.is.isChrome() && !Utils_default.is.isFirefox() && history.replaceState(void 0, void 0, loc);
-        location.replace(loc);
-      } else {
-        var a = document.createElement("a");
-        a.href = `${path2}`;
-        Utils_default.is.isChrome() && !Utils_default.is.isFirefox() && history.pushState(void 0, void 0, a.href);
-        a.click();
-      }
-    } catch (err) {
-      console.log(err);
-      throw err;
-    }
-  }
-  goBack() {
-    return new Promise((res, rej) => {
-      window.history.back();
-      res();
-    });
-  }
-  persist() {
-    if (!document.hasRouterPersist) {
-      let event = "DOMContentLoaded";
-      if ("deviceready" in document) {
-        event = "deviceready";
-      }
-      document.addEventListener(event, (e) => {
-        this.parse();
-        this.notify().then(() => {
-          return this.navigate(true);
-        });
-      });
-      document.hasRouterPersist = true;
-    }
-  }
-  watch() {
-    if (!window.hasRouterPop) {
-      window.addEventListener("popstate", (e) => {
-        this.parse();
-        this.notify().then(() => {
-          return this.clear().then(() => {
-            return this.navigate().then(() => {
-            });
-          });
-        });
-      });
-      window.hasRouterPop = true;
-    } else {
-      this.parse();
-    }
-  }
-  compile(routes) {
-    let con = {};
-    let _routes = [];
-    for (let key in routes) {
-      let config = routes[key];
-      key = String(key);
-      _routes.push(key);
-      const len = key.length;
-      let regex = key;
-      if (["404"].includes(key)) {
-        const callback = routes[key];
-        config = { callback, name: key };
-      } else {
-        regex = regex.slice(1);
-      }
-      regex = regex.split("/");
-      regex = regex.map((item, index) => {
-        let param = item.includes(":");
-        let a = "";
-        index == 0 ? a += "^/" : a += "/";
-        param ? a += "(([^/#?]+?))" : a += item;
-        index == len - 1 ? a += "/?$" : a += "";
-        if (param) {
-          const paramKey = item.replace(":", "");
-          if (!con[key]) {
-            con[key] = {};
-          }
-          con[key].params = {
-            [paramKey]: index
-          };
-        }
-        return a;
-      });
-      if (con[key] && con[key].params) {
-        con[key] = {
-          params: con[key].params,
-          regex: new RegExp(regex.join("")),
-          ...config
-        };
-      } else {
-        con[key] = {
-          regex: new RegExp(regex.join("")),
-          ...config
-        };
-      }
-      if (this.authValidRoute) {
-        Utils_default.array.each(this.authValidRoute, (obj, i) => {
-          let key2 = obj.key;
-          let value = obj.value;
-          if (value == config.name) {
-            if (this.authRedirectRoute[value]) {
-              this.authRedirectRoute[value] = config;
-              console.error(
-                `auth ${value} is found in other route`
-              );
-            } else {
-              this.authRedirectRoute[value] = config;
-            }
-          }
-        });
-      }
-      con[key]._path = key;
-      MemCache_default.object("Router").set(key, con[key]);
-    }
-    con.length = _routes.length;
-    con.keys = _routes;
-    return con;
-  }
-  _cleanPath(path2) {
-  }
-  parse() {
-    let hash = window.location.pathname, scheme, routeName;
-    const url = new URL(location.href);
-    let search = url.search;
-    let path2 = url.pathname;
-    const keys = this.route.keys;
-    let state = {};
-    const PARAMS = {};
-    if (search) {
-      new URLSearchParams(search).forEach((value, key) => {
-        state[key] = value;
-      });
-    }
-    let has = false;
-    for (let i = 0; i < keys.length; i++) {
-      const route = this.route[keys[i]];
-      const regex = route.regex;
-      const components = route.components;
-      const params = route.params;
-      const name = route.name;
-      const auth = route.auth;
-      const overlay = route.overlay;
-      const display = route.display;
-      const onrender = route.onrender;
-      const controller = route.controller;
-      if (params) {
-        let _path = String(path2);
-        _path = _path.slice(1);
-        _path = _path.split("/");
-        Object.entries(params).forEach((param) => {
-          const key = param[0];
-          const value = param[1];
-          if (_path[value]) {
-            PARAMS[key] = _path[value];
-          }
-        });
-      }
-      const test = regex.test(path2);
-      if (test) {
-        if (route.params) {
-          state = Object.keys(state).length ? state : params;
-        }
-        routeName = name;
-        this.authenticate(routeName, auth);
-        this.prev = {
-          components,
-          params: PARAMS,
-          state,
-          path: path2,
-          name,
-          prev: this.prev,
-          overlay,
-          display,
-          onrender,
-          controller
-        };
-        has = true;
-        break;
-      }
-    }
-    this.redirect404(has);
-  }
-  _parsePath(str) {
-    let _u = new URL(`http://localhost${str}`);
-    return {
-      pathname: _u.pathname,
-      search: _u.search
-    };
-  }
-  redirect404(has) {
-    if (!has) {
-      if (this.route["404"]) {
-        let path2 = this.route["404"].callback();
-        let origin = location.origin;
-        let pathname = this._parsePathName(location.pathname);
-        if (this.route[path2]) {
-          if (path2 == "/") {
-            path2 = `${origin}${pathname}`;
-          } else {
-            if (pathname.slice(-1) == "/") {
-              path2 = `${origin}${pathname}#!${path2}`;
-            } else {
-              path2 = `${origin}${pathname}/#!${path2}`;
-            }
-            path2 = `${origin}${pathname}`;
-          }
-          location.replace(path2);
-        } else if (!!path2 && !this.route[path2]) {
-          if (origin.slice(-1) == "/") {
-            if (path2[0] == "/") {
-              path2 = path2.slice(1);
-            }
-          }
-          path2 = `${origin}${path2}`;
-          location.replace(path2);
-        }
-      }
-    } else {
-    }
-  }
-  async navigate(ispersist) {
-    if (this.prev) {
-      const components = [...this.prev.components];
-      const state = this.prev.state;
-      const path2 = this.prev.path;
-      const name = this.prev.name;
-      const overlay = this.prev.overlay;
-      const onrender = this.prev.onrender || {};
-      if (this.loaderOptions && this.loaderOptions.except) {
-        if (!this.loaderOptions.except.includes(name)) {
-          let loaderin = this.loaderOptions.in;
-          let loaderout = this.loaderOptions.out;
-          if (typeof loaderin == "string" && typeof loaderout == "string") {
-            components.unshift(loaderin);
-            components.push(loaderout);
-          }
-        }
-      }
-      try {
-        if (components.length) {
-          return new Promise((res, rej) => {
-            const l = components.length;
-            let i = 0;
-            if (l) {
-              const recur = () => {
-                let component = components[i];
-                if (components.length > i) {
-                  i += 1;
-                  let componentName = component;
-                  let isunload = this.getComponent(
-                    component,
-                    path2
-                  );
-                  new Promise((res2) => {
-                    let _component = component;
-                    if (_component && _component.isConnected != void 0) {
-                      res2(_component);
-                    } else {
-                      setTimeout(() => {
-                        res2(
-                          this.components.get(
-                            component
-                          )
-                        );
-                      }, 50);
-                    }
-                  }).then((component2) => {
-                    if (component2) {
-                      if (component2.isConnected && !isunload) {
-                        if (component2.fire.softReload) {
-                          component2.fire.softReload();
-                          component2.await.softReload && component2.await.softReload.then(
-                            () => {
-                              recur();
-                            }
-                          );
-                        } else {
-                          recur();
-                        }
-                      } else if (component2.type == "model") {
-                        component2.initialize().then(() => {
-                          recur();
-                        }).catch((err) => {
-                          throw err;
-                        });
-                      } else {
-                        let fromRouter = onrender[componentName] || {};
-                        let fromComponent = component2.onRenderConfig || {};
-                        if (!Utils_default.is.isObject(
-                          fromComponent
-                        )) {
-                          fromComponent = {};
-                        }
-                        if (!Utils_default.is.isObject(
-                          fromRouter
-                        )) {
-                          fromRouter = {};
-                        }
-                        component2.render({
-                          emit: {
-                            route: this.prev
-                          },
-                          ...fromRouter,
-                          ...fromComponent
-                        }).then(() => {
-                          if (component2.await.isConnected) {
-                            component2.await.isConnected && component2.await.isConnected.then(
-                              () => {
-                                recur();
-                              }
-                            );
-                          } else {
-                            recur();
-                          }
-                        }).catch((err) => {
-                          throw err;
-                        });
-                      }
-                    }
-                  });
-                } else {
-                  res();
-                }
-              };
-              recur();
-            } else {
-              res();
-            }
-          });
-        }
-      } catch (err) {
-        console.log(err);
-        throw new Error(
-          `some of the component in ${JSON.stringify(
-            components
-          )} in path ${path2} of router is not found, make sure the it is created`
-        );
-      }
-    }
-  }
-  clear() {
-    let promise = Promise.resolve();
-    const overlay = this.prev && this.prev.overlay || void 0;
-    if (overlay) {
-      return promise;
-    }
-    const recur = async function(index, componentNames, sourceComponents, callback) {
-      let component = componentNames[index];
-      let componentName = component;
-      let self = recur;
-      if (componentNames.length > index) {
-        index += 1;
-        component = this.getComponent(component.name, this.prev.path);
-        if (component) {
-          if (component.fire.destroy) {
-            component.fire.destroy();
-            component.await.destroy.then(() => {
-              return self(
-                index,
-                componentNames,
-                sourceComponents,
-                callback
-              );
-            });
-          } else {
-            component.reset().then(() => {
-              return self(
-                index,
-                componentNames,
-                sourceComponents,
-                callback
-              );
-            });
-          }
-        } else {
-          await self(
-            index,
-            componentNames,
-            sourceComponents,
-            callback
-          );
-        }
-      } else {
-        callback();
-      }
-    }.bind(this);
-    if (this.prev && this.prev.prev) {
-      let components = this.prev.prev.components;
-      let state = this.prev.prev.state;
-      let path2 = this.prev.prev.path;
-      let name = this.prev.prev.name;
-      let overlay2 = this.prev.prev.overlay;
-      let destroyPromise = Promise.resolve();
-      if (overlay2) {
-        destroyPromise = new Promise((res, rej) => {
-          const l = components.length;
-          let i = 0;
-          if (l) {
-            recur(i, components, this.overlayComponents, res);
-          } else {
-            res();
-          }
-        });
-      }
-      promise = new Promise((res, rej) => {
-        const l = components.length;
-        let i = 0;
-        if (l) {
-          recur(i, components, this.overlayComponents, res);
-        } else {
-          res();
-        }
-      });
-      return destroyPromise.then(() => {
-        return promise;
-      });
-    }
-    return promise;
-  }
-  pushState(data, notused, path2) {
-    window.history.pushState(data, notused, path2);
-    let promise = Promise.resolve();
-    this.clear();
-    return promise.then(() => {
-      return this.navigate();
-    });
-  }
-  subscribe(fn) {
-    if (fn && fn.constructor.name == "Function") {
-      this.hooks.push(fn);
-    }
-  }
-  notify() {
-    return Promise.all(
-      this.hooks.map((subscribe) => {
-        return subscribe();
-      })
-    );
-  }
-  _getCurrentRoute() {
-    return this.prev;
   }
 };
-var Router2_default = Router;
+var RouterHistory_default = RouterHistory;
 
 // src/Custom/SubTemplate.js
 function getFirst(str, separator) {
@@ -4406,35 +4139,32 @@ var Cake = class {
     this.name = opts.name;
     this.defaultRoot = opts.defaultRoot;
     this.components = {};
-    this.globalScope = new StorageKit({
-      name: `${this.name}/globalScope`,
-      storage: "session",
-      child: "object"
-    });
+    this.globalStorage = function(type = "session") {
+      if (!["session", "local"].includes(type)) {
+        throw new Error("storage could be either, local or session");
+      }
+      return new StorageKit({
+        name: "globalStorage/storage",
+        storage: type,
+        child: "object"
+      });
+    };
+    this.globalCache = MemCache_default.object("globalStore");
     this.excludeQuery = [".cake-template"];
     this.router = opts.router;
-    this.Observer = new Observer(this.name);
+    this.Observer = new Observer2(this.name);
     this.templateCompile = opts.templateCompiler;
     this.initSubscriber = [];
     this._register();
   }
-  // Component(name, template, opts = {}) {
-  //     opts._observer = this.Observer;
-  //     // opts._router = this.Router;
-  //     // opts._scope = this.Scope;
-  //     opts._defaultRoot = this.defaultRoot;
-  //     return new Component(this.name, name, template, opts);
-  // }
   async _register() {
-    this._registerRouter().then(() => {
-      this._registerComponents(this.opts.components || []);
-      if (this.opts.init) {
-        const initHandler = this.opts.init.bind(this);
-        initHandler();
-      }
-      ;
-      this._mountRouter();
-    });
+    await this._registerRouter();
+    await this._registerComponents(this.opts.components || []);
+    if (this.opts.init) {
+      const initHandler = this.opts.init.bind(this);
+      await initHandler();
+    }
+    await this._mountRouter();
   }
   async _registerRouter() {
     let router = await this.router();
@@ -4453,7 +4183,7 @@ var Cake = class {
       }
     }
     if (!this.hasRouter) {
-      this._Router = new Router2_default(this.name, router.routes, router.options);
+      this._Router = new RouterHistory_default(this.name, router.routes, router.options);
       this.hasRouter = true;
     }
   }
@@ -4481,7 +4211,8 @@ var Cake = class {
           );
           component.options.store && Utils_default.is.isFunction(component.options.store) && component.options.store.bind(component.store)(component);
           component.options.utils && component.options.utils.bind(component.utils)(component);
-          component._setGlobalScope(this.globalScope);
+          component._setGlobalStorage(this.globalStorage);
+          component._setGlobalCache(this.globalCache);
           this.components[component.name] = component;
         }
       });
@@ -4530,8 +4261,8 @@ var Cake = class {
 export {
   Component,
   ElementStorage2 as ElementStorage,
-  Observer,
-  Router2_default as Router,
+  Observer2 as Observer,
+  RouterHistory_default as Router,
   Toggle_default as Toggle,
   Cake as default
 };

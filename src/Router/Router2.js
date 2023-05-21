@@ -1,6 +1,6 @@
-import Utils from "./Utils";
+import Utils from "../Utils";
 
-import MemCache from "./MemCache";
+import MemCache from "../MemCache";
 
 class Router {
     constructor(name, routes, options = {}) {

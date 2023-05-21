@@ -1,3 +1,5 @@
+import {isUndefined} from "./UtilsIs";
+
 function recurse(array, callback) {
     let l = array.length;
     let index = 0;
@@ -7,12 +9,23 @@ function recurse(array, callback) {
             const _recurse = (callback) => {
                 if (index < l) {
                     let item = array[index];
-                    callback(item, index).then((result) => {
-                        index += 1;
-                        cache.push(result);
 
+                    const called = callback(item, index);
+
+                    if(isUndefined(called)) {
+                        res(cache);
+                    } else if(called.then){
+                        called.then((result) => {
+                            index += 1;
+                            cache.push(result);
+    
+                            _recurse(callback);
+                        });
+                    } else {
+                        index += 1;
+                        cache.push(called);
                         _recurse(callback);
-                    });
+                    }
                 } else {
                     res(cache);
                 }

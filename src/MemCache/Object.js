@@ -19,6 +19,7 @@
 
 let storage = {};
 export default function (name) {
+    
     if (!storage[name]) {
         storage[name] = {};
     }
@@ -39,6 +40,9 @@ export default function (name) {
             } else {
                 return storage[name];
             }
+        },
+        getAll(){
+            return storage[name];
         },
         destroy(key) {
             if (key) {

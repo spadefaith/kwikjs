@@ -1,6 +1,6 @@
 import Observer from "./Observer";
 import Component from "./Component";
-import Router from "./Router2";
+import Router from "./Router/RouterHistory";
 import Custom from "./Custom";
 // import Piece from "./Piece";
 
@@ -30,12 +30,18 @@ export default class Cake {
         this.components = {};
 
 
-        this.globalScope = new Storage({
-            name: `${this.name}/globalScope`,
-            storage: "session",
-            child: "object",
-        });
+        this.globalStorage = function(type = "session"){
+            if(!["session","local"].includes(type)){
+                throw new Error("storage could be either, local or session");
+            }
+            return new Storage({
+                name: "globalStorage/storage",
+                storage: type,
+                child: "object",
+            });
+        };
 
+        this.globalCache = MemCache.object("globalStore");
 
 
         this.excludeQuery = [".cake-template"];
@@ -54,30 +60,17 @@ export default class Cake {
         // this._isReady = {};
         
     }
-    // Component(name, template, opts = {}) {
-    //     opts._observer = this.Observer;
-    //     // opts._router = this.Router;
-    //     // opts._scope = this.Scope;
-    //     opts._defaultRoot = this.defaultRoot;
-    //     return new Component(this.name, name, template, opts);
-    // }
     async _register(){
-        this._registerRouter()
-        .then(()=>{
-            // console.log(49, this.opts.components);
-            this._registerComponents(this.opts.components || []);
-            if(this.opts.init){
-                const initHandler = this.opts.init.bind(this);
+        await this._registerRouter();
+        // console.log(49, this.opts.components);
+        await this._registerComponents(this.opts.components || []);
+        if(this.opts.init){
+            const initHandler = this.opts.init.bind(this);
+            await initHandler();
+        }
 
 
-
-
-                initHandler();
-            };
-
-
-            this._mountRouter();
-        })
+        await this._mountRouter();
     }
     async _registerRouter() {
         let router = await this.router();
@@ -145,7 +138,8 @@ export default class Cake {
                         component.options.store.bind(component.store)(component);
                     component.options.utils &&
                         component.options.utils.bind(component.utils)(component);
-                    component._setGlobalScope(this.globalScope);
+                    component._setGlobalStorage(this.globalStorage);
+                    component._setGlobalCache(this.globalCache);
     
         
         

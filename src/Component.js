@@ -134,13 +134,14 @@ export default class Component {
         this.$storage = function(type = "session"){
             if(!["session","local"].includes(type)){
                 throw new Error("storage could be either, local or session");
-            };
+            }
             return new Storage({
                 name: `${this.name}/storage`,
                 storage: type,
                 child: "object",
-            })
+            });
         };
+        this.$cache = MemCache.object(`${this.name}/cache`);
     }
     async _create(opts) {
 
@@ -158,13 +159,13 @@ export default class Component {
 
 
 
-        await this.$observer._handlers(handlers, this);
+        // await this.$observer._handlers(handlers, this);
         await this.$observer._subscriber(_subsribes, this);
 
         this.fire = (event, payload) => {
             // console.trace();
             // console.log(146,event);
-            this.$observer.broadcast(this.name, event, payload);
+            return this.$observer.broadcast(this.name, event, payload);
         };
 
         attachStaticMethod(
@@ -438,13 +439,15 @@ export default class Component {
         // this.name == "nav" &&
         //     console.log(272, this.name, this.attribStorage.get());
 
+        // console.log(442,routers);
         if (routers) {
             let routes = MemCache.object("Router").get();
+            // console.log(443,routes);
             routes = Object.keys(routes).reduce((accu, key) => {
                 let val = routes[key];
                 let name = val.name;
 
-                accu[name] = key;
+                accu[name] = {path:key,name:val.name};
 
                 return accu;
             }, {});
@@ -457,19 +460,21 @@ export default class Component {
                 let el = this.html.querySelectorIncluded(`[data-route=${sel}]`);
 
                 // console.log(288, el);
+                // console.log(463,conf);
 
                 if (el) {
-                    let _path = routes[bind];
-                    if (_path) {
+                    let {path, name} = routes[bind] || {};
+                    if (path) {
                         // el.setAttribute("href", `#!${_path}`);
-                        el.setAttribute("href", _path);
+                        el.setAttribute("href", path);
 
                         el.addEventListener("click", (e) => {
                             e.preventDefault();
                             document.dispatchEvent(
                                 new CustomEvent("pathChanged", {
                                     detail: {
-                                        path: _path,
+                                        path: path,
+                                        name:name,
                                         component: this.name,
                                     },
                                 })
@@ -1046,8 +1051,11 @@ export default class Component {
         this.defaultRoot = root;
         this.root = this.root || this.defaultRoot;
     }
-    _setGlobalScope(globalScope) {
-        this.$globalScope = globalScope;
+    _setGlobalStorage(globalStorage) {
+        this.$globalStorage = globalStorage;
+    }
+    _setGlobalCache(globalCache) {
+        this.$globalCache = globalCache;
     }
     _setRouter(router) {
         this.$router = router;
@@ -1055,12 +1063,12 @@ export default class Component {
         // console.log(916, this.name, this.$router);
     }
     _setStorage(cache) {
-        this.$cache = cache;
+        // this.$cache = cache;
     }
     _setToggler() {
         if(!this.toggle){
             return;
-        };
+        }
 
 
         let togglers = (this.attribStorage.get("toggle") || []).filter(
