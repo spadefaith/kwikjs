@@ -60,15 +60,6 @@ function attachStaticMethod(root, handlers, callback) {
 export default class Component {
     constructor(name, template, options) {
         this.name = name;
-        // this.template = template;
-        // this.$observer = options._observer;
-        // this.router = options._router;
-        // this.globalScope = options._globalScope;
-
-        // this.defaultRoot = options._defaultRoot;
-
-        // this.$scope = {};
-        // this.$scope.set = this.$attrib.set;
 
         this.htmlTemplateSelector = template;
 
@@ -84,8 +75,9 @@ export default class Component {
         this.options = options;
         this.renderqueue = options.renderqueue;
 
-        this.customData = options.data && Utils.is.isObject(options.data) || {};
-        this.customCss = options.css && Utils.is.isObject(options.css) || {};
+        this._setCustomData();
+        this._setCustomCss();
+        
 
         this.root = options.root
             ? `${options.root}:not(.cake-template)`
@@ -109,6 +101,7 @@ export default class Component {
         this.originalState = {};
 
         this.utils = {};
+        this.$scopeData = {};
         this.renderQueing = [];
 
         if (!options.handlers) {
@@ -143,6 +136,12 @@ export default class Component {
         };
         this.$cache = MemCache.object(`${this.name}/cache`);
     }
+    async _setCustomData(){
+        this.customData = this.options.data && Utils.is.isObject(this.options.data) || {};
+    }
+    async _setCustomCss(){
+        this.customCss = this.options.css && Utils.is.isObject(this.options.css) || {};
+    }
     async _create(opts) {
 
         if(this._isCreated){
@@ -150,21 +149,11 @@ export default class Component {
         }
         let { handlers, subscribe, root } = opts;
 
-
         await this._bindHandlers(handlers, this);
-
-        // this.name == "spinner" && console.log(120, subscribe);
-
         let _subsribes = await this._bindSubscribe(subscribe, this);
-
-
-
-        // await this.$observer._handlers(handlers, this);
         await this.$observer._subscriber(_subsribes, this);
 
         this.fire = (event, payload) => {
-            // console.trace();
-            // console.log(146,event);
             return this.$observer.broadcast(this.name, event, payload);
         };
 
@@ -185,10 +174,6 @@ export default class Component {
             }
         );
 
-        // if(this.name == "Test"){
-        //     console.log(123, opts, this.template);
-        // }
-
         switch (this.type == "view" && this.template.isStatic) {
             case true:
                 // return this._createElementAsync();
@@ -203,16 +188,10 @@ export default class Component {
 
     async render(options = {}) {
         try {
-            // console.log(176, this.template);
             if(this.template.isStatic){
                 return;
             }
-
-
             await this._compile;
-
-            // this.name == "nav" && console.log(147, this.name, "render");
-
             let multiple = this.options.multiple;
             if (options.hasqued) {
                 //
@@ -223,7 +202,6 @@ export default class Component {
                     );
                 }
             }
-
             if (options.revokeque) {
                 //TODO why the this.wait.destroy is hanging when renderQue
                 this.await.destroy = Promise.resolve();
@@ -233,17 +211,12 @@ export default class Component {
                 return Promise.resolve();
             }
 
-            // let {root, cleaned, emit={}, data={}} = options || {};
-
             let root = options.root || this.root;
             let cleaned = options.cleaned;
             let emit = options.emit || {};
             this.customData = options.data || this.customData;
             this.customCss = options.css || this.customCss;
 
-
-            // console.log(329, root);
-            // console.log(330, typeof root == "string");
             if (typeof root == "string") {
                 let sel = `${root}:not(.cake-template)`;
                 root = document.querySelector(sel);
@@ -253,20 +226,14 @@ export default class Component {
 
             this.isConnected = true;
 
-            // if (this.name == "nav") {
-            //     console.log(137, this.name);
-            //     console.log(138, this.template);
-            // }
-            // this.name == "nav" && console.log(197, this.isReady);
-
             this._updateRoute();
 
             if (!this.isReady) {
                 /**
-                 * this.html is created;
+                 * this is where the target data-* is being parsed 
+                 * and the final html is created;
                  */
                 await this._createElement();
-                //static component;
 
                 !this.template.has &&
                     this.fire.isConnected &&
@@ -276,7 +243,6 @@ export default class Component {
 
             await this.await.destroy;
 
-            //add data to the component when rendered from router;
             await this._getDataOnRender();
 
             this.customCss && this.html.css(this.customCss);
@@ -286,50 +252,65 @@ export default class Component {
             this.fire.beforeConnected &&
                 this.fire.beforeConnected(payload, true);
 
+
+            /**call onInit hook */
+            this.onInit && await this.onInit();
+
+
+            /**replace the mustache before rendering those without data-* */
             let el = this.$templating.createElement(this.customData, this.html.getElement());
 
+
+            /**recache the template after templating */
             this._recacheFromTemplating(el);
 
+            /**replace the data-src by src */
             this.html.replaceDataSrc();
 
-            // console.log('to be connected');
+            /**append the html if template type in the root */
             this.template.isTemplate && this.html.appendTo(root, cleaned);
             
-            // console.log('already connected');
-
-            // this._recacheFromSubTemplate();
-
-
-            // if(this._hasSubTemplate){
-            //     // console.log(287, this.html.el.outerHTML);
-            //     console.log(286,"re-inject the html");
-            // }
-
-
-
+            /**replace data-router with hash */
             await this._replaceRouter();
+
+            /**cache the data-ref elements */
             await this._findRef();
+
+            /**cache the data-container elements */
             await this._findContainer();
 
+            /**activate toggler */
             this._setToggler();
 
+            /**activate validator if form type */
             this._activateValidator();
 
+            /**call isConnected hook */
             this.fire.isConnected &&
                 (await this.fire.isConnected(payload, true));
 
-
-
-
+            /**add event to element when rendered */
             await this._addEvent();
+
+            /**reset if multiple type */
             multiple && (await this._hardReset());
+
+
+            /**run auto scope */
+            await this._autoScope();
         } catch (err) {
             console.log(281, this.name, err);
         }
-
-        // await this._watchReactive();
     }
-
+    async _autoScope(){
+        if(this.$scopeData){
+            let keys = Object.keys(this.$scopeData);
+            await Utils.function.recurse(keys, (key, index)=>{
+                let val = this.$scopeData[key];
+                return this.$scope(key, {[key]:val});
+            });
+        }
+    }
     async _getDataOnRender(){
         if (
             this.options.onRender &&
@@ -343,13 +324,22 @@ export default class Component {
             );
 
             let data = this.onRenderConfig.data;
+            let $scope = this.onRenderConfig.$scope;
             let css = this.onRenderConfig.css;
+
+            if($scope){
+                this.$scopeData = Object.assign(this.$scopeData, $scope);
+            }
             if (data) {
                 this.customData = Object.assign(this.customData, data);
             }
             if (css) {
                 this.customCss = Object.assign(this.customCss, css);
             }
+
+            data = null;
+            $scope = null;
+            css = null;
         }
     }
 
@@ -755,33 +745,7 @@ export default class Component {
     }
 
     async _parseHTML(html, isStatic, isReInject) {
-        // console.log(487, this.original);
-        // if (!this.original) {
-        //     this.original = await html.cloneNode();
-        // }
-
         await this.$attrib.inject(html, this.name, isStatic, isReInject);
-
-
-        // if(!this._hasSubTemplate){
-        //     this._hasSubTemplate = !!this.html.el.querySelector("sub-template");
-        // };
-
-
-        // this.name == "toolbar" &&
-        //     console.log(475, this.name, this.attribStorage.get());
-        // this.name == "toolbar" &&
-        //     console.log(476, this.name, html.el.innerHTML);
-
-        // this.name == "nav" && console.log(490, this.original.el.innerHTML);
-
-        // this.name == "form" &&
-        //     console.log(
-        //         (this.attribStorage.get("event") || []).filter(
-        //             (item) => item._component == this.name
-        //         )
-        //     );
-
         this._isParsed = true;
     }
     async renderQue(options) {
@@ -824,7 +788,17 @@ export default class Component {
         await this._hardReset(this.name);
         // console.log(600, this.html.el);
 
+        /**reset the containers to release memory */
         this.container = {};
+        this.ref = {};
+        this.targets = {};
+        this._setCustomData();
+        this._setCustomCss();
+        this.$cache.destroy();
+        this.scopeHistory={};
+        this.store = {};
+        this.$scopeData = {};
+
         this.isConnected = false;
         this.isReady = false;
 
@@ -941,13 +915,6 @@ export default class Component {
         });
     }
     async $scope(key, value) {
-        // if (this.name == "form") {
-        //     console.log(689, this.html.el.innerHTML);
-        // }
-
-        // this.name == "toolbar" && console.log(623, this.attribStorage.get());
-
-  
 
         if (!Utils.is.isString(key)) {
             throw new Error("key must be string");
@@ -960,17 +927,12 @@ export default class Component {
         if (Utils.is.isString(key) || Utils.is.isNumber(key)) {
             if (this.scopeHistory[key] == value) {
                 // return true; //
-                prev = this.scopeHistory[key]
+                prev = this.scopeHistory[key];
             }
             this.scopeHistory[key] = value;
         }
 
-
-
-
         let notify = await this.$attrib.set(key, value, prev, this);
-
-        // this.name == "TriggerList" && console.log(659, notify);
 
         if (notify.includes("template")) {
             // this.name == "toolbar" && console.log(659, this.html.el.innerHTML);

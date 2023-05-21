@@ -9,12 +9,17 @@ function _getTag(template) {
     }
 }
 function _bindReplace(obj, string, lefttag, righttag) {
+
     for (let key in obj) {
         if (Object.prototype.hasOwnProperty.call(obj, key)) {
             let pattern = new RegExp(`${lefttag}${key}${righttag}`, "g");
-            pattern && (string = string.replace(pattern, `${obj[key]}`));
+            if(pattern){
+                string = string.replace(pattern, `${obj[key]}`);
+                
+            }
         }
     }
+
     return string;
 }
 

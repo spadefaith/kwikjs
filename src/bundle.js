@@ -1926,7 +1926,9 @@ function _bindReplace(obj, string, lefttag, righttag) {
   for (let key in obj) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
       let pattern = new RegExp(`${lefttag}${key}${righttag}`, "g");
-      pattern && (string = string.replace(pattern, `${obj[key]}`));
+      if (pattern) {
+        string = string.replace(pattern, `${obj[key]}`);
+      }
     }
   }
   return string;
@@ -3003,8 +3005,8 @@ var Component = class {
     this.onInit = options.onInit;
     this.options = options;
     this.renderqueue = options.renderqueue;
-    this.customData = options.data && Utils_default.is.isObject(options.data) || {};
-    this.customCss = options.css && Utils_default.is.isObject(options.css) || {};
+    this._setCustomData();
+    this._setCustomCss();
     this.root = options.root ? `${options.root}:not(.cake-template)` : options.root;
     this.items = false;
     this.toggle = options.toggle;
@@ -3018,6 +3020,7 @@ var Component = class {
     this.state = options.state;
     this.originalState = {};
     this.utils = {};
+    this.$scopeData = {};
     this.renderQueing = [];
     if (!options.handlers) {
       console.error(`${this.name} has no handlers`);
@@ -3043,6 +3046,12 @@ var Component = class {
       });
     };
     this.$cache = MemCache_default.object(`${this.name}/cache`);
+  }
+  async _setCustomData() {
+    this.customData = this.options.data && Utils_default.is.isObject(this.options.data) || {};
+  }
+  async _setCustomCss() {
+    this.customCss = this.options.css && Utils_default.is.isObject(this.options.css) || {};
   }
   async _create(opts) {
     if (this._isCreated) {
@@ -3121,6 +3130,7 @@ var Component = class {
       this.customCss && this.html.css(this.customCss);
       payload.element = this.html;
       this.fire.beforeConnected && this.fire.beforeConnected(payload, true);
+      this.onInit && await this.onInit();
       let el = this.$templating.createElement(this.customData, this.html.getElement());
       this._recacheFromTemplating(el);
       this.html.replaceDataSrc();
@@ -3133,8 +3143,18 @@ var Component = class {
       this.fire.isConnected && await this.fire.isConnected(payload, true);
       await this._addEvent();
       multiple && await this._hardReset();
+      await this._autoScope();
     } catch (err) {
       console.log(281, this.name, err);
+    }
+  }
+  async _autoScope() {
+    if (this.$scopeData) {
+      let keys = Object.keys(this.$scopeData);
+      await Utils_default.function.recurse(keys, (key, index) => {
+        let val = this.$scopeData[key];
+        return this.$scope(key, { [key]: val });
+      });
     }
   }
   async _getDataOnRender() {
@@ -3145,13 +3165,20 @@ var Component = class {
         this
       );
       let data = this.onRenderConfig.data;
+      let $scope = this.onRenderConfig.$scope;
       let css = this.onRenderConfig.css;
+      if ($scope) {
+        this.$scopeData = Object.assign(this.$scopeData, $scope);
+      }
       if (data) {
         this.customData = Object.assign(this.customData, data);
       }
       if (css) {
         this.customCss = Object.assign(this.customCss, css);
       }
+      data = null;
+      $scope = null;
+      css = null;
     }
   }
   async _renderStatic() {
@@ -3455,6 +3482,14 @@ var Component = class {
     }
     await this._hardReset(this.name);
     this.container = {};
+    this.ref = {};
+    this.targets = {};
+    this._setCustomData();
+    this._setCustomCss();
+    this.$cache.destroy();
+    this.scopeHistory = {};
+    this.store = {};
+    this.$scopeData = {};
     this.isConnected = false;
     this.isReady = false;
     if (this.renderQueing && this.renderQueing.length) {
