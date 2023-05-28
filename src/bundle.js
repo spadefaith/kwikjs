@@ -3269,15 +3269,27 @@ var Component = class {
     }
   }
   _bindHandlers(handlers) {
-    for (let key in handlers) {
-      if (Object.prototype.hasOwnProperty.call(handlers, key)) {
-        let fn = handlers[key];
+    if (Utils_default.is.isObject(handlers)) {
+      for (let key in handlers) {
+        if (Object.prototype.hasOwnProperty.call(handlers, key)) {
+          let fn = handlers[key];
+          let originalName = fn.name;
+          fn = fn.bind(this);
+          fn.original = originalName;
+          fn.binded = this.name;
+          handlers[originalName] = fn;
+          this._initAsync(key);
+        }
+      }
+    } else if (Utils_default.is.isArray(handlers)) {
+      for (let i = 0; i < handlers.length; i++) {
+        let fn = handlers[i];
         let originalName = fn.name;
         fn = fn.bind(this);
         fn.original = originalName;
         fn.binded = this.name;
         handlers[originalName] = fn;
-        this._initAsync(key);
+        this._initAsync(originalName);
       }
     }
     if (!this.await.destroy) {
@@ -3673,7 +3685,6 @@ var Component = class {
         cloned[key] = opts[key] ? cloned[key] = opts[key] : cloned[key] = this.options[key];
       }
     }
-    ;
     return new Component(name, template || this.htmlTemplateSelector, cloned);
   }
 };
@@ -4218,14 +4229,14 @@ var Cake = class {
       }
     }
     if (!this.hasRouter) {
-      this._Router = new RouterHistory_default(this.name, router.routes, router.options);
+      this.$router = new RouterHistory_default(this.name, router.routes, router.options);
       this.hasRouter = true;
     }
   }
   _mountRouter() {
     Object.keys(this.components).forEach((name) => {
       let component = this.components[name];
-      component._setRouter(this._Router);
+      component._setRouter(this.$router);
     });
   }
   _registerComponents(components) {
@@ -4273,7 +4284,6 @@ var Cake = class {
       if (page.type != "page") {
         throw new Error("not an instance of page");
       }
-      ;
       this._registerPageComponents(page.components);
     } catch (err) {
       console.log(158, err);

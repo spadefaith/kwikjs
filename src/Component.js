@@ -476,16 +476,29 @@ export default class Component {
         }
     }
     _bindHandlers(handlers) {
-        for (let key in handlers) {
-            if (Object.prototype.hasOwnProperty.call(handlers, key)) {
-                let fn = handlers[key];
+        if(Utils.is.isObject(handlers)){
+            for (let key in handlers) {
+                if (Object.prototype.hasOwnProperty.call(handlers, key)) {
+                    let fn = handlers[key];
+                    let originalName = fn.name;
+                    fn = fn.bind(this);
+                    fn.original = originalName;
+                    fn.binded = this.name;
+                    handlers[originalName] = fn;
+    
+                    this._initAsync(key);
+                }
+            }
+        } else if (Utils.is.isArray(handlers)){
+            for (let i = 0; i < handlers.length; i++){
+                let fn = handlers[i];
                 let originalName = fn.name;
                 fn = fn.bind(this);
                 fn.original = originalName;
                 fn.binded = this.name;
                 handlers[originalName] = fn;
 
-                this._initAsync(key);
+                this._initAsync(originalName);
             }
         }
         if (!this.await.destroy) {
@@ -1099,7 +1112,7 @@ export default class Component {
                 cloned[key] = opts[key]? (cloned[key] = opts[key]) : (cloned[key] = this.options[key]); 
 
             }
-        };
+        }
 
         // console.log(1088,cloned);
 

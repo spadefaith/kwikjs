@@ -97,7 +97,8 @@ export default class Cake {
             }
         }
         if (!this.hasRouter) {
-            this._Router = new Router(this.name, router.routes, router.options);
+            this.$router = new Router(this.name, router.routes, router.options);
+
             this.hasRouter = true;
         }
 
@@ -108,7 +109,7 @@ export default class Cake {
         Object.keys(this.components).forEach((name) => {
             let component = this.components[name];
             // console.log(112,name, this._Router);
-            component._setRouter(this._Router);
+            component._setRouter(this.$router);
         });
     }
 
@@ -173,7 +174,7 @@ export default class Cake {
         try{
             if(page.type != "page"){
                 throw new Error("not an instance of page");
-            };
+            }
     
             this._registerPageComponents(page.components);
         } catch(err){
@@ -196,5 +197,6 @@ export default class Cake {
             console.log(err);
         }
     }
+
 
 }
