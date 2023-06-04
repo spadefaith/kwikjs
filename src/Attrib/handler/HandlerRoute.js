@@ -41,8 +41,15 @@ async function HandlerBind(
 
         Utils.array.each(els, function (el, index) {
             el.setAttribute("href", el.dataset.route);
+
+            el = null;
         });
+
+        els = null;
     }
+
+    configs = null;
+    st = null;
 
     return name;
 }

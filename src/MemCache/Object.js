@@ -36,13 +36,14 @@ export default function (name) {
         },
         get(key) {
             if (key) {
-                return storage[name][key];
+                let cloned = {...storage[name]};
+                return cloned[key];
             } else {
-                return storage[name];
+                return {...storage[name]};
             }
         },
         getAll(){
-            return storage[name];
+            return {...storage[name]};
         },
         destroy(key) {
             if (key) {

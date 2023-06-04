@@ -1,5 +1,4 @@
 import Utils from "../../Utils";
-import MemCache from "../../MemCache";
 
 /**
  *
@@ -44,8 +43,15 @@ async function HandlerBind(
                 el.setAttribute(attrHyphen, data);
                 el[attr] = data;
             }
+
+            el = null;
         }
+
+        els = null;
     }
+
+    configs = null;
+    st = null;
 }
 
 export default HandlerBind;

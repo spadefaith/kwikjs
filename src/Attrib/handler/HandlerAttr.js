@@ -1,5 +1,4 @@
 import Utils from "../../Utils";
-import MemCache from "../../MemCache";
 
 async function HandlerAttr(
     prop,
@@ -27,11 +26,10 @@ async function HandlerAttr(
         let attrkey = config.attrkey;
         let attrvalue = config.attrvalue;
 
-        let els = html.querySelectorAll(
-            `[data-${name}=${sel}]:not(.cake-template)`
-        );
+        let els = html.querySelectorAll(`[data-${name}=${sel}]`);
 
-        [...els].forEach((el) => {
+        for (let i = 0; i < els.length; i++){
+            let el = els[i];
             let test = false;
             if (ops) {
                 test = Utils.string.toLogical(data, ops, testVal);
@@ -51,8 +49,17 @@ async function HandlerAttr(
             } else {
                 el.removeAttribute(attrkey);
             }
-        });
+
+            el = null;
+        }
+
+       
+        els = null;
     });
+
+    configs = null;
+    st = null;
+
 
     return name;
 }

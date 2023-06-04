@@ -23,7 +23,7 @@ function identify(str){
     } else if (str.substring(0,1) == "$"){
         return "selector";
     }
-};
+}
 
 async function HandlerSubTemplate(
     component,
@@ -58,16 +58,11 @@ async function HandlerSubTemplate(
              * 2. replace it.
              */
 
-
-
-
-
             let template = Utils.element.querySelectorIncluded(html, `#${bind}`);
 
             if(template){
                 if(template.tagName){
                     let content = Utils.template.getContent(template, true);
-
 
                     let attrs ={};
                     let data ={};
@@ -84,7 +79,7 @@ async function HandlerSubTemplate(
 
                             if(!attrs[selector]){
                                 attrs[selector] = {};
-                            };
+                            }
                             attrs[selector][attr] = value || true;
 
                         }
@@ -105,9 +100,9 @@ async function HandlerSubTemplate(
                             if(key.includes("data-validator")){
                                 let prop = key.substring("data-validator".length +1, key.length);
                                 validators += `${prop}=${value}, `;
-                            };
+                            }
 
-                        })
+                        });
 
 
 
@@ -118,9 +113,9 @@ async function HandlerSubTemplate(
                             });
 
                             
-
+                            query = null;
                             validators = "";
-                        };
+                        }
 
 
                     });
@@ -129,18 +124,29 @@ async function HandlerSubTemplate(
 
                     if(Object.keys(data).length){
                         content = templating.createElement(data, content, false);
-                    };
+                    }
 
                     
                     el.replaceWith(content);
+                    el = null;
                 } else {
                     console.error("subtemplate template should be a template tag");
                 }
+
+
+                template = null;
             } else {
                 console.error("cannot find template for subtemplate #"+bind);
-            };
+            }
         });
+
+        els = null;
     }
+
+    configs = null;
+    st = null;
+    templating = null;
+
     return name;
 }
 

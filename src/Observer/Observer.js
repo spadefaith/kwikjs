@@ -10,12 +10,11 @@ export default class Observer{
     async broadcast(event, payload){
         let subscribers = this.store.get(event);
         if(subscribers && subscribers.length){
-            // subscribers.forEach(handler=>{
-            //     handler(payload);
-            // });
-
             return recurse(subscribers, (handler, index)=>{
                 return handler(payload);
+            }).then(res=>{
+                subscribers = null;
+                return res;
             });
         }
     }
@@ -25,7 +24,8 @@ export default class Observer{
         }
         let subscribers = this.store.get(event);
         subscribers.push(handler);
-
         this.store.set(event,subscribers);
+
+        subscribers = null;
     }
 }

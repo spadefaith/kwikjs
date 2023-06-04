@@ -91,16 +91,17 @@ async function set(
     );
 }
 
-async function inject(el, component, isStatic = false, storage, keys) {
+async function inject(el, component, isStatic = false, storage,multipleEventStorage, keys) {
     el = el.el || el;
-    return await compile(el, component, isStatic, storage, keys);
+    return await compile(el, component, isStatic, storage,multipleEventStorage, keys);
 }
 
 export default class Attrib {
-    constructor(storage, templateCompile) {
+    constructor(storage,multipleEventStorage, templateCompile) {
         // console.log(89, storage, templateCompile);
 
         this.storage = storage;
+        this.multipleEventStorage = multipleEventStorage;
         this.templateCompile = templateCompile;
 
         this.cache = {};
@@ -120,9 +121,9 @@ export default class Attrib {
     async inject(el, component, isStatic = false, isReInject = false) {
         let compiled = {};
         if(!isReInject && this.cache[component]){
-            compiled = await inject(el, component, isStatic, this.storage, this.cache[component]);
+            compiled = await inject(el, component, isStatic, this.storage,this.multipleEventStorage, this.cache[component]);
         } else {
-            compiled = await inject(el, component, isStatic, this.storage);
+            compiled = await inject(el, component, isStatic, this.storage,this.multipleEventStorage);
         }
 
         // console.log(126,component, this.cache[component]);

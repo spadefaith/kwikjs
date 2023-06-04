@@ -15,6 +15,8 @@ function _collectContent(template) {
         others.push(el);
     }
     cf = { style: fr.children[0], others };
+    fr = null;
+
     return cf;
 }
 
@@ -109,6 +111,7 @@ function getContent(template, isConvert) {
                     s += sOther[selector];
                 }
             }
+            query = null;
         }
     }
 

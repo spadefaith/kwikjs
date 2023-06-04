@@ -6,7 +6,8 @@ async function compileEvent(
     isStatic,
     html,
     storage,
-    prev
+    prev,
+    multipleEventStorage
 ) {
     let compileName = "event";
 
@@ -19,6 +20,16 @@ async function compileEvent(
         isStatic,
         function (el, id, target, gr, index) {
             let splitted = gr;
+
+            let hasMultipleEvents = false;
+            if(splitted.length > 1){
+                multipleEventStorage.set(id, true);
+                hasMultipleEvents = true;
+            }
+
+            const events = [];
+            const callbacks = [];
+
             for (let s = 0; s < splitted.length; s++) {
                 let _sp1 = splitted[s].split(":");
                 let event = _sp1[0];
@@ -26,33 +37,55 @@ async function compileEvent(
                 event = event.trim();
                 cb = cb ? cb.trim() : cb;
 
-                // component == "toolbar" && console.log(20, event);
-                // if (event.includes("ck-")) {
-                //     // console.log("event has ck-");
-                //     continue;
-                // }
 
-                if (prev[event]) {
-                    event = prev[event][compileName];
+                if(hasMultipleEvents){
+                    events.push(event);
+                    callbacks.push(cb);
                 }
 
-                // console.log(28, prev);
+                const prevConf = prev[event];
+                let evs = [];
+                let cbs = [];
+                if(prevConf && prevConf.isMultiple){
+                    evs = prevConf.events;
+                    cbs = prevConf.callbacks;
 
-                const conf = {
-                    _component: component,
-                    _type: compileName,
-                    event,
-                    sel: id,
-                    bind: cb,
-                    cb,
-                };
+                    multipleEventStorage.destroy();
+                } else if(prevConf && !prevConf.isMultiple){
+                    evs = [prevConf.event];
+                    cbs = [prevConf.cb];
+                } else {
+                    evs = [event];
+                    cbs = [cb];
+                }
 
-                storage.push(compileName, conf);
-                storage.set(id, conf);
+                evs.forEach((event, index)=>{
+                    let cb = cbs[index];
 
-                // console.log(30, "compile event", component, storage.get());
+                    const conf = {
+                        _component: component,
+                        _type: compileName,
+                        event,
+                        sel: id,
+                        bind: cb,
+                        cb,
+                    };
+    
+                    storage.push(compileName, conf);
+                    storage.set(id, conf);
+
+                });
 
                 el.dataset[compileName] = id;
+            }
+
+            if(hasMultipleEvents){
+                const conf = storage.get(id);
+                conf.events = events;
+                conf.callbacks = callbacks;
+                conf.isMultiple = true;
+
+                storage.set(id, conf);
             }
         }
     );

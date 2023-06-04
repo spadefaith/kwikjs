@@ -15,7 +15,7 @@ import compileRef from "./CompileRef";
 import compileSubTemplate from "./CompileSubTemplate";
 import compileValidator from "./CompileValidator";
 
-async function compile(el, component, isStatic = false, storage, keys) {
+async function compile(el, component, isStatic = false, storage,multipleEventStorage, keys) {
     let map = {
         "[data-template]": {
             handler:compileTemplate, name:"template"
@@ -80,10 +80,10 @@ async function compile(el, component, isStatic = false, storage, keys) {
             let val = map[key];
             if(keys.includes(val.name)){
                 accu[key] = val;
-            };
+            }
             return accu;
         },{});
-    };
+    }
 
     // console.log(80,keys, map);
 
@@ -129,6 +129,7 @@ async function compile(el, component, isStatic = false, storage, keys) {
                         el,
                         storage,
                         prev,
+                        multipleEventStorage
                     ]).then(res=>{
                         return map[q].name;
                     })

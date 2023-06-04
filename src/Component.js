@@ -79,9 +79,7 @@ export default class Component {
         this._setCustomCss();
         
 
-        this.root = options.root
-            ? `${options.root}:not(.cake-template)`
-            : options.root;
+        this.root = options.root;
         this.items = false;
         
         this.toggle = options.toggle;
@@ -193,15 +191,14 @@ export default class Component {
             }
             await this._compile;
             let multiple = this.options.multiple;
-            if (options.hasqued) {
-                //
-            } else {
+            if (!options.hasqued) {
                 if (this.isConnected && !multiple) {
                     console.error(
                         `${this.name} is already rendered and connected to the DOM`
                     );
                 }
             }
+            
             if (options.revokeque) {
                 //TODO why the this.wait.destroy is hanging when renderQue
                 this.await.destroy = Promise.resolve();
@@ -218,7 +215,7 @@ export default class Component {
             this.customCss = options.css || this.customCss;
 
             if (typeof root == "string") {
-                let sel = `${root}:not(.cake-template)`;
+                let sel = `${root}`;
                 root = document.querySelector(sel);
             }
 
@@ -865,10 +862,13 @@ export default class Component {
 
         // this.name == "TriggerList" && console.log(624, "add event",this.targets);
 
+
         this.targets.forEach((cf) => {
             let { bind, cb, event, sel, _type, _component } = cf;
 
             let el = this.html.querySelectorIncluded(`[data-event=${sel}]`);
+
+
 
             // console.log(506, this.name, el, `[data-event=${sel}]`);
 
@@ -1006,7 +1006,10 @@ export default class Component {
         this.attribStorage = MemCache.object(
             `${this.groupName}/${this.name}/Attrib`
         );
-        this.$attrib = new Attrib(this.attribStorage, this._templateCompile);
+        this.attribStorageMultipleEvent = MemCache.object(
+            `${this.groupName}/${this.name}/MultipleEvent`
+        );
+        this.$attrib = new Attrib(this.attribStorage,this.attribStorageMultipleEvent, this._templateCompile);
     }
     _setObserver(observer) {
 

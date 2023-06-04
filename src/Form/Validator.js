@@ -1,7 +1,7 @@
 import Templating from "../Templating";
 import Utils from "../Utils";
 const inputEvent =function(callbacks){
-    return  function (e){
+    return  function inputEvent(e){
         if(e){
             let target = e.target;
             let value = e.target.value;
@@ -19,93 +19,93 @@ const inputEvent =function(callbacks){
             this.doneLoading();
 
         }
-    }
-}
+    };
+};
 
 
 const validate = function(target, value,templating, callbacks,successCallback, errorCallback, showErrorCallback){
     let attr = target.dataset.validator;
 
-            if(!attr){
-                return;
+    if(!attr){
+        return;
+    }
+    let validator = attr.split(",").reduce((accu, iter)=>{
+        
+        let [key, value] = iter.split("=");
+
+        if(value && value.includes(",")){
+            value = value.split(",");
+        } else {
+
+            value = value ? value.trim() : true;
+        }
+
+        accu.push({key: key.trim(), value});
+
+        return accu;
+    },[]);
+    if(!validator.length){
+        return;
+    }
+    const attrValues = {};
+    let _callbacks = validator.filter(item=>{
+        return callbacks[item.key];
+    }).map(item=>{
+        let {key , value} = item;
+        attrValues[key] = value;
+
+        let conf = callbacks[key];
+        let callback = conf.handler;
+        let errorMessage = conf.error;
+
+        callback.errorMessage = errorMessage ;
+        callback.validatorName = key;
+
+        return callback;
+    });
+
+
+    const asy = async function(callbacks){
+        
+        const validation = await Promise.all(callbacks.map(async (callback)=>{
+            let _attrValues = attrValues[callback.validatorName];
+            
+            let message = callback.errorMessage;
+
+            
+            if(_attrValues && message.includes("{") && message.includes("}")){
+
+                let data = _attrValues.split(",").reduce((accu, iter, index)=>{
+                    
+                    accu[`${index}`] = iter;
+
+                    return accu;
+                }, {});
+
+                message = templating.replaceString(data, message);
             }
-            let validator = attr.split(",").reduce((accu, iter)=>{
-                
-                let [key, value] = iter.split("=");
-    
-                if(value && value.includes(",")){
-                    value = value.split(",");
-                } else {
-    
-                    value = value ? value.trim() : true;
-                };
-    
-                accu.push({key: key.trim(), value});
-    
-                return accu;
-            },[]);
-            if(!validator.length){
-                return
-            };
-            const attrValues = {};
-            let _callbacks = validator.filter(item=>{
-                return callbacks[item.key];
-            }).map(item=>{
-                let {key , value} = item;
-                attrValues[key] = value;
-    
-                let conf = callbacks[key];
-                let callback = conf.handler;
-                let errorMessage = conf.error;
-    
-                callback.errorMessage = errorMessage 
-                callback.validatorName = key;
-    
-                return callback;
-            });
+            let test = await callback({
+                target:target,
+                value
+            },_attrValues);
 
+            return {test,message};
+        }));
 
-            const asy = async function(callbacks){
-                
-                const validation = await Promise.all(callbacks.map(async (callback)=>{
-                    let _attrValues = attrValues[callback.validatorName];
-                    
-                    let message = callback.errorMessage;
-
-                    
-                    if(_attrValues && message.includes("{") && message.includes("}")){
-
-                        let data = _attrValues.split(",").reduce((accu, iter, index)=>{
-                            
-                            accu[`${index}`] = iter;
-
-                            return accu;
-                        }, {});
-
-                        message = templating.replaceString(data, message);
-                    }
-                    let test = await callback({
-                        target:target,
-                        value
-                    },_attrValues);
-
-                    return {test,message};
-                }));
-
-                if(validation.some(val=>!val.test)){
-                    errorCallback(target)
-                   
-                   
-                } else {
-                    successCallback(target)
-                   
-                }
-                showErrorCallback(target, validation); 
-               
-                return validation;
-            };
-            return asy(_callbacks);
-}
+        if(validation.some(val=>!val.test)){
+            errorCallback(target);
+            
+            
+        } else {
+            successCallback(target);
+            
+        }
+        showErrorCallback(target, validation); 
+        
+        return validation;
+    };
+    return asy(_callbacks);
+};
 
 
 
@@ -131,7 +131,18 @@ export default class Validator {
     }
 
     _addEvent(target){
-        target.addEventListener("input", inputEvent(this.validation).bind(this));
+        this.handlerFn = inputEvent(this.validation).bind(this);
+        
+        target.addEventListener("input", this.handlerFn);
+        
+
+    }
+    dispose(){
+        this.form.removeEventListener("input", this.handlerFn);
+    }
+    reset(){
+        this.dispose();
+        this._addEvent(this.form);
     }
     isLoading(){
         console.log("validating");
@@ -161,7 +172,7 @@ export default class Validator {
             if(!test){
                 hasError = true;
                 accu += `${message} <br>`;
-            };
+            }
 
             return accu;
         },"");
@@ -177,13 +188,13 @@ export default class Validator {
         // console.log(133, "parent",target,parentClass, parent);
         if(!parent){
             throw new Error("parent is not found");
-        };
+        }
         
         const errorTagIdentity = this.errorTextClass;
         const connectedErrorTextParent = parent.querySelector(`.${errorTagIdentity}`);
         if(connectedErrorTextParent){
             connectedErrorTextParent.remove();
-        };
+        }
         
 
         if(hasError){
@@ -191,7 +202,7 @@ export default class Validator {
             tag.classList.add(errorTagIdentity);
             tag.innerHTML = messages;
             parent.appendChild(tag);
-        };
+        }
 
 
     }
@@ -212,20 +223,20 @@ export default class Validator {
                 this.addSuccessClass.bind(this), 
                 this.addErrorClass.bind(this),
                 this.showError.bind(this)
-            )
+            );
         }));
 
         return val.map(item=>{
             if (item){
                 return item.every(item=>{
                     return item.test;
-                })
+                });
             } else {
                 return true;
             }
         }).every(item=>{
             return item == true;
-        })
+        });
 
         
     }

@@ -46,43 +46,25 @@ function sanitize(string, exclude = []) {
 function toFormData(form, options = {}) {
     //trim, json, skipsanitize, sanitize = boolean
 
-    const controls = [];
-    const textareas = form.querySelectorAll("TEXTAREA");
-    const inputs = form.querySelectorAll("INPUT");
-    const selects = form.querySelectorAll("SELECT");
+    let controls = [];
+    let textareas = form.querySelectorAll("TEXTAREA");
+    let inputs = form.querySelectorAll("INPUT");
+    let selects = form.querySelectorAll("SELECT");
 
     function loop(arr, cont, sort) {
         let files = [];
         for (let i = 0; i < arr.length; i++) {
-            let test = true;
-
-            try {
-                test = arr[i].closest(".cake-template");
-            } catch (err) {
-                //
-            }
-            try {
-                if (!test) {
-                    test = arr[i].classList.includes("cake-template");
-                }
-            } catch (err) {
-                //
-            }
-            if (test) {
-                //
+            if (arr[i].getAttribute("type") == "file") {
+                files.push(arr[i]);
             } else {
-                if (arr[i].getAttribute("type") == "file") {
-                    files.push(arr[i]);
-                } else {
-                    cont.push(arr[i]);
-                }
+                cont.push(arr[i]);
             }
         }
         if (files.length) {
             files.forEach((item) => {
                 cont.push(item);
             });
-            files = [];
+            files.length = 0;
         }
     }
 
@@ -109,13 +91,8 @@ function toFormData(form, options = {}) {
                     for (let i = 0; i < element.length; i++) {
                         let el = element[i];
                         if (el.nodeType == 1) {
-                            let test = el.closest(".cake-template");
-                            if (test) {
-                                //
-                            } else {
-                                element = el;
-                                break;
-                            }
+                            element = el;
+                            break;
                         }
                     }
                 }
@@ -159,6 +136,11 @@ function toFormData(form, options = {}) {
             }
         }
     }
+
+    textareas =null;
+    inputs =null;
+    selects =null;
+    controls.length = 0;
 
     if (options.json) {
         return o;
@@ -244,7 +226,7 @@ function plot(config) {
     setTimeout(() => {
         query(
             container,
-            "SELECT.input:not(.cake-template)",
+            "SELECT.input",
             function (select, value) {
                 if (!select) {
                     return;
@@ -252,7 +234,7 @@ function plot(config) {
                 // console.log(select);
                 query(
                     select,
-                    "OPTION:not(.cake-template)",
+                    "OPTION",
                     function (option, _value, index) {
                         // console.log(option)
                         if (option) {

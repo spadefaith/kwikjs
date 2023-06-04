@@ -219,13 +219,14 @@ function Object_default(name) {
     },
     get(key) {
       if (key) {
-        return storage[name][key];
+        let cloned = { ...storage[name] };
+        return cloned[key];
       } else {
-        return storage[name];
+        return { ...storage[name] };
       }
     },
     getAll() {
-      return storage[name];
+      return { ...storage[name] };
     },
     destroy(key) {
       if (key) {
@@ -282,6 +283,9 @@ var Observer = class {
     if (subscribers && subscribers.length) {
       return recurse(subscribers, (handler, index) => {
         return handler(payload);
+      }).then((res) => {
+        subscribers = null;
+        return res;
       });
     }
   }
@@ -292,6 +296,7 @@ var Observer = class {
     let subscribers = this.store.get(event);
     subscribers.push(handler);
     this.store.set(event, subscribers);
+    subscribers = null;
   }
 };
 
@@ -501,6 +506,7 @@ function replaceDataSrc(root) {
       el.removeAttribute("data-src");
     }
   }
+  srcs = null;
 }
 function unRequired(root) {
   let srcs = root.querySelectorAll("[required]");
@@ -510,6 +516,7 @@ function unRequired(root) {
       el.removeAttribute("required");
     }
   }
+  srcs = null;
 }
 function addEventListener(el, event, handler, options) {
   return el.addEventListener(event, handler, options);
@@ -690,6 +697,7 @@ function _collectContent(template) {
     others.push(el);
   }
   cf = { style: fr.children[0], others };
+  fr = null;
   return cf;
 }
 function _parseStyle(style) {
@@ -769,6 +777,7 @@ function getContent(template, isConvert) {
           s += sOther[selector];
         }
       }
+      query = null;
     }
   }
   appendStyle(s);
@@ -816,38 +825,24 @@ function sanitize2(string, exclude = []) {
   return decodeURIComponent(string.replace(/<.*>/, ""));
 }
 function toFormData(form, options = {}) {
-  const controls = [];
-  const textareas = form.querySelectorAll("TEXTAREA");
-  const inputs = form.querySelectorAll("INPUT");
-  const selects = form.querySelectorAll("SELECT");
+  let controls = [];
+  let textareas = form.querySelectorAll("TEXTAREA");
+  let inputs = form.querySelectorAll("INPUT");
+  let selects = form.querySelectorAll("SELECT");
   function loop2(arr, cont, sort) {
     let files = [];
     for (let i = 0; i < arr.length; i++) {
-      let test = true;
-      try {
-        test = arr[i].closest(".cake-template");
-      } catch (err) {
-      }
-      try {
-        if (!test) {
-          test = arr[i].classList.includes("cake-template");
-        }
-      } catch (err) {
-      }
-      if (test) {
+      if (arr[i].getAttribute("type") == "file") {
+        files.push(arr[i]);
       } else {
-        if (arr[i].getAttribute("type") == "file") {
-          files.push(arr[i]);
-        } else {
-          cont.push(arr[i]);
-        }
+        cont.push(arr[i]);
       }
     }
     if (files.length) {
       files.forEach((item) => {
         cont.push(item);
       });
-      files = [];
+      files.length = 0;
     }
   }
   loop2(textareas, controls);
@@ -867,12 +862,8 @@ function toFormData(form, options = {}) {
           for (let i2 = 0; i2 < element.length; i2++) {
             let el = element[i2];
             if (el.nodeType == 1) {
-              let test = el.closest(".cake-template");
-              if (test) {
-              } else {
-                element = el;
-                break;
-              }
+              element = el;
+              break;
             }
           }
         }
@@ -908,6 +899,10 @@ function toFormData(form, options = {}) {
       }
     }
   }
+  textareas = null;
+  inputs = null;
+  selects = null;
+  controls.length = 0;
   if (options.json) {
     return o;
   } else {
@@ -981,14 +976,14 @@ function plot(config) {
   setTimeout(() => {
     query(
       container,
-      "SELECT.input:not(.cake-template)",
+      "SELECT.input",
       function(select, value) {
         if (!select) {
           return;
         }
         query(
           select,
-          "OPTION:not(.cake-template)",
+          "OPTION",
           function(option, _value, index) {
             if (option) {
               if (option.value == value) {
@@ -1434,7 +1429,7 @@ async function compileClass(elModels, component, isStatic, html, storage2) {
 var CompileClass_default = compileClass;
 
 // src/Attrib/compile/CompileEvent.js
-async function compileEvent(elModels, component, isStatic, html, storage2, prev) {
+async function compileEvent(elModels, component, isStatic, html, storage2, prev, multipleEventStorage) {
   let compileName = "event";
   await loop(
     compileName,
@@ -1443,26 +1438,58 @@ async function compileEvent(elModels, component, isStatic, html, storage2, prev)
     isStatic,
     function(el, id, target, gr, index) {
       let splitted = gr;
+      let hasMultipleEvents = false;
+      if (splitted.length > 1) {
+        multipleEventStorage.set(id, true);
+        hasMultipleEvents = true;
+      }
+      const events = [];
+      const callbacks = [];
       for (let s = 0; s < splitted.length; s++) {
         let _sp1 = splitted[s].split(":");
         let event = _sp1[0];
         let cb = _sp1[1];
         event = event.trim();
         cb = cb ? cb.trim() : cb;
-        if (prev[event]) {
-          event = prev[event][compileName];
+        if (hasMultipleEvents) {
+          events.push(event);
+          callbacks.push(cb);
         }
-        const conf = {
-          _component: component,
-          _type: compileName,
-          event,
-          sel: id,
-          bind: cb,
-          cb
-        };
-        storage2.push(compileName, conf);
-        storage2.set(id, conf);
+        const prevConf = prev[event];
+        let evs = [];
+        let cbs = [];
+        if (prevConf && prevConf.isMultiple) {
+          evs = prevConf.events;
+          cbs = prevConf.callbacks;
+          multipleEventStorage.destroy();
+        } else if (prevConf && !prevConf.isMultiple) {
+          evs = [prevConf.event];
+          cbs = [prevConf.cb];
+        } else {
+          evs = [event];
+          cbs = [cb];
+        }
+        evs.forEach((event2, index2) => {
+          let cb2 = cbs[index2];
+          const conf = {
+            _component: component,
+            _type: compileName,
+            event: event2,
+            sel: id,
+            bind: cb2,
+            cb: cb2
+          };
+          storage2.push(compileName, conf);
+          storage2.set(id, conf);
+        });
         el.dataset[compileName] = id;
+      }
+      if (hasMultipleEvents) {
+        const conf = storage2.get(id);
+        conf.events = events;
+        conf.callbacks = callbacks;
+        conf.isMultiple = true;
+        storage2.set(id, conf);
       }
     }
   );
@@ -1649,7 +1676,7 @@ async function compileValidator(elModels, component, isStatic, html, storage2) {
 var CompileValidator_default = compileValidator;
 
 // src/Attrib/compile/index.js
-async function compile(el, component, isStatic = false, storage2, keys) {
+async function compile(el, component, isStatic = false, storage2, multipleEventStorage, keys) {
   let map2 = {
     "[data-template]": {
       handler: CompileTemplate_default,
@@ -1726,11 +1753,9 @@ async function compile(el, component, isStatic = false, storage2, keys) {
       if (keys.includes(val.name)) {
         accu[key] = val;
       }
-      ;
       return accu;
     }, {});
   }
-  ;
   let query = await getElementsByDataset(
     el,
     Object.keys(map2)
@@ -1754,7 +1779,8 @@ async function compile(el, component, isStatic = false, storage2, keys) {
             isStatic,
             el,
             storage2,
-            prev
+            prev,
+            multipleEventStorage
           ]).then((res) => {
             return map2[q].name;
           })
@@ -1781,10 +1807,9 @@ async function HandlerAttr(prop, newValue, prevValue, component, html, storage2)
     let sel = config.sel;
     let attrkey = config.attrkey;
     let attrvalue = config.attrvalue;
-    let els = html.querySelectorAll(
-      `[data-${name}=${sel}]:not(.cake-template)`
-    );
-    [...els].forEach((el) => {
+    let els = html.querySelectorAll(`[data-${name}=${sel}]`);
+    for (let i = 0; i < els.length; i++) {
+      let el = els[i];
       let test = false;
       if (ops) {
         test = Utils_default.string.toLogical(data, ops, testVal);
@@ -1803,8 +1828,12 @@ async function HandlerAttr(prop, newValue, prevValue, component, html, storage2)
       } else {
         el.removeAttribute(attrkey);
       }
-    });
+      el = null;
+    }
+    els = null;
   });
+  configs = null;
+  st = null;
   return name;
 }
 var HandlerAttr_default = HandlerAttr;
@@ -1829,8 +1858,12 @@ async function HandlerBind(prop, newValue, prevValue, component, html, storage2)
         el.setAttribute(attrHyphen, data);
         el[attr] = data;
       }
+      el = null;
     }
+    els = null;
   }
+  configs = null;
+  st = null;
 }
 var HandlerBind_default = HandlerBind;
 
@@ -1851,9 +1884,7 @@ async function HandlerClass(prop, newValue, prevValue, component, html, storage2
     let sel = config.sel;
     bind = Utils_default.string.removeSpace(bind);
     data = newValue;
-    let els = html.querySelectorAll(
-      `[data-${name}=${sel}]:not(.cake-template)`
-    );
+    let els = html.querySelectorAll(`[data-${name}=${sel}]`);
     for (let p = 0; p < els.length; p++) {
       let el = els[p];
       let test = false;
@@ -1871,6 +1902,7 @@ async function HandlerClass(prop, newValue, prevValue, component, html, storage2
           if (!classList.includes(cls)) {
             setTimeout(() => {
               el.classList.add(cls);
+              el = null;
             });
           }
         });
@@ -1880,12 +1912,16 @@ async function HandlerClass(prop, newValue, prevValue, component, html, storage2
           if (classList.includes(cls)) {
             setTimeout(() => {
               el.classList.remove(cls);
+              el = null;
             });
           }
         });
       }
     }
+    els = null;
   }
+  configs = null;
+  st = null;
   return name;
 }
 var HandlerClass_default = HandlerClass;
@@ -1908,8 +1944,12 @@ async function HandlerBind2(prop, newValue, prevValue, component, html, storage2
     let els = html.querySelectorAllIncluded(`[data-route=${sel}]`);
     Utils_default.array.each(els, function(el, index) {
       el.setAttribute("href", el.dataset.route);
+      el = null;
     });
+    els = null;
   }
+  configs = null;
+  st = null;
   return name;
 }
 var HandlerRoute_default = HandlerBind2;
@@ -2052,8 +2092,14 @@ async function HandlerTemplate(prop, newValue, prevValue, component, html, stora
       }
       Utils_default.array.each(els, function(el, index) {
         insertAfter(el, render);
+        el = null;
       });
+      els = null;
+      compiled = null;
+      render = null;
     }
+    st = null;
+    configs = null;
     return name;
   } catch (err) {
     handleError(err);
@@ -2104,7 +2150,6 @@ async function HandlerSubTemplate(component, html, storage2) {
               if (!attrs[selector]) {
                 attrs[selector] = {};
               }
-              ;
               attrs[selector][attr] = value2 || true;
             }
           }
@@ -2117,31 +2162,34 @@ async function HandlerSubTemplate(component, html, storage2) {
                 let prop = key.substring("data-validator".length + 1, key.length);
                 validators += `${prop}=${value2}, `;
               }
-              ;
             });
             if (validators) {
               let query = Utils_default.element.querySelectorAllIncluded(content, selector);
               Utils_default.array.each(query, function(el2, index3) {
                 el2.setAttribute("data-validator", validators);
               });
+              query = null;
               validators = "";
             }
-            ;
           });
           if (Object.keys(data).length) {
             content = templating.createElement(data, content, false);
           }
-          ;
           el.replaceWith(content);
+          el = null;
         } else {
           console.error("subtemplate template should be a template tag");
         }
+        template = null;
       } else {
         console.error("cannot find template for subtemplate #" + bind);
       }
-      ;
     });
+    els = null;
   }
+  configs = null;
+  st = null;
+  templating = null;
   return name;
 }
 var HandlerSubTemplate_default = HandlerSubTemplate;
@@ -2201,13 +2249,14 @@ async function set(prop, newValue, prevValue, component, storage2, templateCompi
     })
   );
 }
-async function inject(el, component, isStatic = false, storage2, keys) {
+async function inject(el, component, isStatic = false, storage2, multipleEventStorage, keys) {
   el = el.el || el;
-  return await compile_default(el, component, isStatic, storage2, keys);
+  return await compile_default(el, component, isStatic, storage2, multipleEventStorage, keys);
 }
 var Attrib = class {
-  constructor(storage2, templateCompile) {
+  constructor(storage2, multipleEventStorage, templateCompile) {
     this.storage = storage2;
+    this.multipleEventStorage = multipleEventStorage;
     this.templateCompile = templateCompile;
     this.cache = {};
   }
@@ -2225,9 +2274,9 @@ var Attrib = class {
   async inject(el, component, isStatic = false, isReInject = false) {
     let compiled = {};
     if (!isReInject && this.cache[component]) {
-      compiled = await inject(el, component, isStatic, this.storage, this.cache[component]);
+      compiled = await inject(el, component, isStatic, this.storage, this.multipleEventStorage, this.cache[component]);
     } else {
-      compiled = await inject(el, component, isStatic, this.storage);
+      compiled = await inject(el, component, isStatic, this.storage, this.multipleEventStorage);
     }
     if (!this.cache[component] && !isReInject) {
       this.cache[component] = compiled;
@@ -2797,7 +2846,7 @@ var Toggle_default = class {
 
 // src/Form/Validator.js
 var inputEvent = function(callbacks) {
-  return function(e) {
+  return function inputEvent2(e) {
     if (e) {
       let target = e.target;
       let value = e.target.value;
@@ -2827,14 +2876,12 @@ var validate = function(target, value, templating, callbacks, successCallback, e
     } else {
       value2 = value2 ? value2.trim() : true;
     }
-    ;
     accu.push({ key: key.trim(), value: value2 });
     return accu;
   }, []);
   if (!validator.length) {
     return;
   }
-  ;
   const attrValues = {};
   let _callbacks = validator.filter((item) => {
     return callbacks[item.key];
@@ -2889,7 +2936,15 @@ var Validator = class {
     this._addEvent(this.form);
   }
   _addEvent(target) {
-    target.addEventListener("input", inputEvent(this.validation).bind(this));
+    this.handlerFn = inputEvent(this.validation).bind(this);
+    target.addEventListener("input", this.handlerFn);
+  }
+  dispose() {
+    this.form.removeEventListener("input", this.handlerFn);
+  }
+  reset() {
+    this.dispose();
+    this._addEvent(this.form);
   }
   isLoading() {
     console.log("validating");
@@ -2919,7 +2974,6 @@ var Validator = class {
         hasError = true;
         accu += `${message} <br>`;
       }
-      ;
       return accu;
     }, "");
     let parentClass = `.${this.parentClass}`;
@@ -2927,20 +2981,17 @@ var Validator = class {
     if (!parent) {
       throw new Error("parent is not found");
     }
-    ;
     const errorTagIdentity = this.errorTextClass;
     const connectedErrorTextParent = parent.querySelector(`.${errorTagIdentity}`);
     if (connectedErrorTextParent) {
       connectedErrorTextParent.remove();
     }
-    ;
     if (hasError) {
       let tag = document.createElement(this.errorTextTag);
       tag.classList.add(errorTagIdentity);
       tag.innerHTML = messages;
       parent.appendChild(tag);
     }
-    ;
   }
   async validate(controlSelector) {
     if (!this.form) {
@@ -3007,7 +3058,7 @@ var Component = class {
     this.renderqueue = options.renderqueue;
     this._setCustomData();
     this._setCustomCss();
-    this.root = options.root ? `${options.root}:not(.cake-template)` : options.root;
+    this.root = options.root;
     this.items = false;
     this.toggle = options.toggle;
     this.targets = {};
@@ -3094,8 +3145,7 @@ var Component = class {
       }
       await this._compile;
       let multiple = this.options.multiple;
-      if (options.hasqued) {
-      } else {
+      if (!options.hasqued) {
         if (this.isConnected && !multiple) {
           console.error(
             `${this.name} is already rendered and connected to the DOM`
@@ -3114,7 +3164,7 @@ var Component = class {
       this.customData = options.data || this.customData;
       this.customCss = options.css || this.customCss;
       if (typeof root == "string") {
-        let sel = `${root}:not(.cake-template)`;
+        let sel = `${root}`;
         root = document.querySelector(sel);
       }
       let payload = { emit };
@@ -3609,7 +3659,10 @@ var Component = class {
     this.attribStorage = MemCache_default.object(
       `${this.groupName}/${this.name}/Attrib`
     );
-    this.$attrib = new Attrib(this.attribStorage, this._templateCompile);
+    this.attribStorageMultipleEvent = MemCache_default.object(
+      `${this.groupName}/${this.name}/MultipleEvent`
+    );
+    this.$attrib = new Attrib(this.attribStorage, this.attribStorageMultipleEvent, this._templateCompile);
   }
   _setObserver(observer) {
     this.$observer = observer;
@@ -3923,6 +3976,7 @@ var RouterHistory = class {
       conf._path = path;
       MemCache_default.object("Router").set(path, conf);
     }
+    paths = null;
   }
   clean() {
     this.user = {};

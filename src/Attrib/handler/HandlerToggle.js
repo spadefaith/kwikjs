@@ -24,6 +24,7 @@ async function HandlerToggle(
 ) {
     let name = "toggle";
     let st = storage.get(name);
+    
     let configs = st.filter((item) => item._type == name && item.bind == prop);
 
     if (!configs.length) return;
@@ -52,8 +53,16 @@ async function HandlerToggle(
                     el && el.classList.add("is-active");
                 }
             }
+
+            el = null;
         });
+
+        els = null;
     }
+
+    configs = null;
+    st = null;
+    
     return name;
 }
 

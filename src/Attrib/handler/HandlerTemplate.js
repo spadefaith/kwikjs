@@ -115,10 +115,17 @@ async function HandlerTemplate(
 
             Utils.array.each(els, function (el, index) {
                 insertAfter(el, render);
+                el = null;
             });
 
+            els = null;
+            compiled = null;
+            render = null;
             //need to recompile;
         }
+
+        st = null;
+        configs = null;
 
         return name;
     } catch (err) {

@@ -1,5 +1,4 @@
 import Utils from "../../Utils";
-import MemCache from "../../MemCache";
 
 /**
  *
@@ -42,9 +41,7 @@ async function HandlerClass(
 
         data = newValue;
 
-        let els = html.querySelectorAll(
-            `[data-${name}=${sel}]:not(.cake-template)`
-        );
+        let els = html.querySelectorAll(`[data-${name}=${sel}]`);
 
         for (let p = 0; p < els.length; p++) {
             let el = els[p];
@@ -65,6 +62,7 @@ async function HandlerClass(
                     if (!classList.includes(cls)) {
                         setTimeout(() => {
                             el.classList.add(cls);
+                            el = null;
                         });
                     }
                 });
@@ -76,12 +74,20 @@ async function HandlerClass(
                     if (classList.includes(cls)) {
                         setTimeout(() => {
                             el.classList.remove(cls);
+                            el = null;
                         });
                     }
                 });
             }
+
+            // el = null;
         }
+
+        els = null;
     }
+
+    configs = null;
+    st = null;
     return name;
 }
 

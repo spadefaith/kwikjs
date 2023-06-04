@@ -119,6 +119,7 @@ function replaceDataSrc(root) {
             el.removeAttribute("data-src");
         }
     }
+    srcs = null;
 }
 function unRequired(root) {
     let srcs = root.querySelectorAll("[required]");
@@ -129,6 +130,7 @@ function unRequired(root) {
             el.removeAttribute("required");
         }
     }
+    srcs = null;
 }
 
 function addEventListener(el, event, handler, options) {

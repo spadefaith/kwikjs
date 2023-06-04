@@ -304,7 +304,7 @@ class RouterHistory {
         } else if(this.notFound && !parsedOnly){
             let url = await this.notFound();
             try {
-                //valid url;
+                //valid url if new URL will not throw error;
                 let urlClass = new URL(url);
                 window.location = url;
             } catch(err){
@@ -331,6 +331,8 @@ class RouterHistory {
 
             MemCache.object("Router").set(path, conf);
         }
+
+        paths = null;
 
     }
     clean(){
