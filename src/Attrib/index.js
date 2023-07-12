@@ -20,6 +20,8 @@ async function set(
     actions 
 ) {
 
+    const isTarget = component.name == "static_form";
+
     let dynamicActions = [
         "bind",
         "attr",
@@ -47,10 +49,16 @@ async function set(
 
     let configs = storage.get();
 
+
+    
+
     for (let a = 0; a < dynamicActions.length; a++) {
         const action = dynamicActions[a];
         const vals = configs[action];
 
+        // console.log(56, vals);
+        // isTarget && action == "template" && console.log(prop,configs);
+        
         if (vals) {
             for (let v = 0; v < vals.length; v++) {
                 const val = vals[v];
@@ -61,6 +69,7 @@ async function set(
             }
         }
     }
+
 
     return await Promise.all(
         Object.keys(hits).map((key) => {
@@ -91,9 +100,9 @@ async function set(
     );
 }
 
-async function inject(el, component, isStatic = false, storage,multipleEventStorage, keys) {
+async function inject(el, component, isStatic = false, storage,multipleEventStorage, keys,isReInject) {
     el = el.el || el;
-    return await compile(el, component, isStatic, storage,multipleEventStorage, keys);
+    return await compile(el, component, isStatic, storage,multipleEventStorage, keys,isReInject);
 }
 
 export default class Attrib {
@@ -106,9 +115,9 @@ export default class Attrib {
 
         this.cache = {};
     }
-    set(prop, newValue, prevValue, component) {
-        // console.log(108, prop, newValue, component);
-        return set(
+    async set(prop, newValue, prevValue, component) {
+        // console.log(108, prop, newValue);
+        const setted = await set(
             prop,
             newValue,
             prevValue,
@@ -117,13 +126,18 @@ export default class Attrib {
             this.templateCompile,
             this.cache[component]
         );
+
+        // console.log(109,setted);
+
+        return setted;
     }
     async inject(el, component, isStatic = false, isReInject = false) {
         let compiled = {};
+
         if(!isReInject && this.cache[component]){
-            compiled = await inject(el, component, isStatic, this.storage,this.multipleEventStorage, this.cache[component]);
+            compiled = await inject(el, component, isStatic, this.storage,this.multipleEventStorage, this.cache[component],isReInject);
         } else {
-            compiled = await inject(el, component, isStatic, this.storage,this.multipleEventStorage);
+            compiled = await inject(el, component, isStatic, this.storage,this.multipleEventStorage, undefined, isReInject);
         }
 
         // console.log(126,component, this.cache[component]);

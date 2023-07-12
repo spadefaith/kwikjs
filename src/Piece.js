@@ -91,19 +91,18 @@ function applyCss(element, styles) {
     });
 }
 
-function appendTo(root, element, cleaned, callback) {
-    // console.log(88, element);
+async function appendTo(root, element, cleaned) {
+    // const cloned = element.cloneNode(true);
     if (!root && !root.attributes) {
         throw new TypeError(`the ${root} is not an instance of Element`);
     }
 
     cleaned && (root.innerHTML = "");
 
+
+    // root.appendChild(cloned);
     root.appendChild(element);
-
-    // console.log(87, root);
-
-    callback && callback(element, root);
+   
 }
 
 function querySelectorAllIncluded(element, selector, attr, val) {
@@ -112,7 +111,8 @@ function querySelectorAllIncluded(element, selector, attr, val) {
 
 export default class Piece {
     constructor(el) {
-        this.el = el;
+        
+        this.el = el && (el.el || el);
         // console.log(104, this.el);
     }
     toArray() {
@@ -152,8 +152,8 @@ export default class Piece {
     css(obj) {
         return applyCss(this.el, obj);
     }
-    appendTo(roots, cleaned, callback) {
-        return appendTo(roots, this.el, cleaned, callback);
+    async appendTo(roots, cleaned) {
+        return await appendTo(roots, this.el, cleaned);
     }
     getElementsByTagName(tag) {
         return Utils.element.toArray(this.el.getElementsByTagName(tag));

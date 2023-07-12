@@ -264,8 +264,11 @@ export default class Component {
             /**replace the data-src by src */
             this.html.replaceDataSrc();
 
+
+    
+
             /**append the html if template type in the root */
-            this.template.isTemplate && this.html.appendTo(root, cleaned);
+            this.template.isTemplate && await this.html.appendTo(root, cleaned);
             
             /**replace data-router with hash */
             await this._replaceRouter();
@@ -868,7 +871,7 @@ export default class Component {
 
             let el = this.html.querySelectorIncluded(`[data-event=${sel}]`);
 
-
+            // console.log(871,`[data-event=${sel}]`,el, this.html);
 
             // console.log(506, this.name, el, `[data-event=${sel}]`);
 

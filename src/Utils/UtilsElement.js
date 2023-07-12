@@ -111,15 +111,18 @@ function replaceDataSrc(root) {
     if(!root){
         throw new Error("data-src is not found");
     }
-    let srcs = querySelectorAllIncluded(root, "data-src", null);
-    for (let s = 0; s < srcs.length; s++) {
-        let el = srcs[s];
-        if (el && el.dataset.src) {
-            el.setAttribute("src", el.dataset.src);
-            el.removeAttribute("data-src");
+    setTimeout(()=>{
+        let srcs = querySelectorAllIncluded(root, "[data-src]", null);
+
+        for (let s = 0; s < srcs.length; s++) {
+            let el = srcs[s];
+            if (el && el.dataset.src) {
+                el.setAttribute("src", el.dataset.src);
+                el.removeAttribute("data-src");
+            }
         }
-    }
-    srcs = null;
+        srcs = null;
+    },1000);
 }
 function unRequired(root) {
     let srcs = root.querySelectorAll("[required]");

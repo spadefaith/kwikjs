@@ -68,9 +68,12 @@ async function HandlerTemplate(
         let name = "template";
         let st = storage.get(name);
 
+        // component == "static_form" &&console.log(71,st);
+
         let configs = st.filter(
             (item) => item._type == name && item.bind == prop
         );
+        
 
         // component == "static_form" && console.log(65, newValue);
         // component == "static_form" && console.log(66, configs);
@@ -83,6 +86,12 @@ async function HandlerTemplate(
             let sel = sub.sel;
             let bind = sub.bind;
             let template = sub.template;
+
+            if(Utils.is.isArray(newValue[bind]) && !newValue[bind].length){
+                return;
+            }
+
+            
 
             let els = html.querySelectorAllIncluded(`[data-${name}=${sel}]`);
 
@@ -123,6 +132,8 @@ async function HandlerTemplate(
             render = null;
             //need to recompile;
         }
+
+        // component == "static_form" &&console.log(prop);
 
         st = null;
         configs = null;

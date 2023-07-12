@@ -15,9 +15,10 @@ import compileRef from "./CompileRef";
 import compileSubTemplate from "./CompileSubTemplate";
 import compileValidator from "./CompileValidator";
 
-async function compile(el, component, isStatic = false, storage,multipleEventStorage, keys) {
+async function compile(el, component, isStatic = false, storage,multipleEventStorage, keys,isReInject) {
+    const templateSelector = "[data-template]";
     let map = {
-        "[data-template]": {
+        [templateSelector]: {
             handler:compileTemplate, name:"template"
         },
         ":not([data-template]) > [data-bind]": {
@@ -74,6 +75,7 @@ async function compile(el, component, isStatic = false, storage,multipleEventSto
             */
     };
 
+    
 
     if(keys){
         map = Object.keys(map).reduce((accu, key)=>{
@@ -86,6 +88,8 @@ async function compile(el, component, isStatic = false, storage,multipleEventSto
     }
 
     // console.log(80,keys, map);
+
+    
 
 
     let query = await getElementsByDataset(
@@ -101,11 +105,15 @@ async function compile(el, component, isStatic = false, storage,multipleEventSto
         // component == "form"
     );
 
+
+    
+
     let r = [];
 
     // component == "form" && console.log(68, el.innerHTML, component, query);
     // console.log(68, el.innerHTML);
     // component == "BillingSummary" && console.log(el.outerHTML);
+    // component == "static_form" && console.log(73,isReInject);
 
     let prev = storage.get();
     storage.destroy();
@@ -119,7 +127,11 @@ async function compile(el, component, isStatic = false, storage,multipleEventSto
                 //     });
                 // }
 
-                // component == "form" && console.log(73, q, query[q]);
+                // component == "static_form" && console.log(73, templateSelector == q && isReInject);
+                if(templateSelector == q && isReInject){
+                    continue;
+                }
+                // component == "static_form" && console.log(77, templateSelector == q && isReInject);
 
                 r.push(
                     map[q].handler.apply(this, [
@@ -137,6 +149,9 @@ async function compile(el, component, isStatic = false, storage,multipleEventSto
             }
         }
     }
+
+    // component == "static_form" && console.log(80,r);
+
     return Promise.all(r.length ? r : [r]);
 }
 

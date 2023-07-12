@@ -31,7 +31,17 @@ export default class {
     open() {
         let decoded;
         if (this.type == "session") {
-            decoded = JSON.parse(sessionStorage[this.name]);
+            try {
+                decoded = JSON.parse(sessionStorage[this.name]);
+            } catch(err){
+                //it will error, when the sessionStorage || localStorage is cleared, without refreshing the browser
+                this.init();
+                try {
+                    decoded = JSON.parse(sessionStorage[this.name]);
+                } catch(err){//
+                }
+                // throw err;
+            }
             // if (this.name == '_cake_persistent'){
             //     console.log(2503,decoded);
             // };

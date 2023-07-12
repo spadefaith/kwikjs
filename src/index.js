@@ -15,7 +15,7 @@ import Utils from "./Utils";
 
 const ElementStorage = MemCache.element;
 
-export { Observer, Component, Router, ElementStorage , Toggle};
+export { Observer, Component, Router, ElementStorage , Toggle, Storage};
 
 Custom();
 

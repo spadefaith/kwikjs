@@ -498,15 +498,17 @@ function replaceDataSrc(root) {
   if (!root) {
     throw new Error("data-src is not found");
   }
-  let srcs = querySelectorAllIncluded(root, "data-src", null);
-  for (let s = 0; s < srcs.length; s++) {
-    let el = srcs[s];
-    if (el && el.dataset.src) {
-      el.setAttribute("src", el.dataset.src);
-      el.removeAttribute("data-src");
+  setTimeout(() => {
+    let srcs = querySelectorAllIncluded(root, "[data-src]", null);
+    for (let s = 0; s < srcs.length; s++) {
+      let el = srcs[s];
+      if (el && el.dataset.src) {
+        el.setAttribute("src", el.dataset.src);
+        el.removeAttribute("data-src");
+      }
     }
-  }
-  srcs = null;
+    srcs = null;
+  }, 1e3);
 }
 function unRequired(root) {
   let srcs = root.querySelectorAll("[required]");
@@ -1020,52 +1022,6 @@ var Observer2 = class {
     this.subscribe = [];
     this.observer = new Observer();
   }
-  // _handlers(callback = {}, ctx) {
-  //     console.log("here");
-  //     if (!Object.keys(callback).length) {
-  //         return;
-  //     }
-  //     if (!ctx.handlers) {
-  //         ctx.handlers = {};
-  //     }
-  //     for (let key in callback) {
-  //         if (Object.prototype.hasOwnProperty.call(callback, key)) {
-  //             let fn = callback[key].bind(ctx);
-  //             let listeners = function () {
-  //                 console.log("here");
-  //                 return this.subscribe.filter((item) => {
-  //                     return item.from == ctx.name;
-  //                 });
-  //             }.bind(this);
-  //             this.handlers[key] = async function () {
-  //                 let _listeners = listeners();
-  //                 let payload = await fn();
-  //                 await Promise.all(
-  //                     _listeners.map((fn) => {
-  //                         return fn.handler(payload);
-  //                     })
-  //                 );
-  //                 return payload;
-  //             }.bind(ctx);
-  //             ctx.handlers[key] = async function () {
-  //                 let _listeners = listeners();
-  //                 let payload = await fn();
-  //                 console.log(49,_listeners);
-  //                 await recurse(_listeners,async (fn, index)=>{
-  //                     console.log(50,fn);
-  //                     return fn.handler(payload);
-  //                 });
-  //                 // await Promise.all(
-  //                 //     _listeners.map((fn) => {
-  //                 //         return fn.handler(payload);
-  //                 //     })
-  //                 // );
-  //                 return payload;
-  //             }.bind(ctx);
-  //         }
-  //     }
-  //     // console.log(40, this.handlers);
-  // }
   _subscriber(_components = {}, ctx) {
     if (!Object.keys(_components).length) {
       return;
@@ -1087,9 +1043,10 @@ var Observer2 = class {
     const key = `${component}-${event}`;
     let subscriber = this.observer.store.get(key);
     if (subscriber && Utils_default.is.isArray(subscriber)) {
-      return await recurse(subscriber, (callback, index) => {
+      const recur = await recurse(subscriber, (callback, index) => {
         return callback(payload);
       });
+      return recur && (recur.length == 1 ? recur[0] : recur);
     }
   }
   _setComponents(components) {
@@ -1147,17 +1104,16 @@ function applyCss(element, styles) {
     }
   });
 }
-function appendTo(root, element, cleaned, callback) {
+async function appendTo(root, element, cleaned) {
   if (!root && !root.attributes) {
     throw new TypeError(`the ${root} is not an instance of Element`);
   }
   cleaned && (root.innerHTML = "");
   root.appendChild(element);
-  callback && callback(element, root);
 }
 var Piece = class {
   constructor(el) {
-    this.el = el;
+    this.el = el && (el.el || el);
   }
   toArray() {
     return Utils_default.element.toArray(this._el);
@@ -1196,8 +1152,8 @@ var Piece = class {
   css(obj) {
     return applyCss(this.el, obj);
   }
-  appendTo(roots, cleaned, callback) {
-    return appendTo(roots, this.el, cleaned, callback);
+  async appendTo(roots, cleaned) {
+    return await appendTo(roots, this.el, cleaned);
   }
   getElementsByTagName(tag) {
     return Utils_default.element.toArray(this.el.getElementsByTagName(tag));
@@ -1535,17 +1491,19 @@ async function compileTemplate(elModels, component, isStatic, html, storage2) {
     isStatic,
     function(el, id, target, gr, index) {
       let bind = el.dataset[compileName];
-      const conf = {
-        _component: component,
-        _type: compileName,
-        sel: id,
-        bind,
-        template: el.innerHTML
-      };
-      storage2.push(compileName, conf);
-      storage2.set(id, conf);
-      el.dataset[compileName] = id;
-      el.innerHTML = "";
+      if (el.innerHTML) {
+        const conf = {
+          _component: component,
+          _type: compileName,
+          sel: id,
+          bind,
+          template: el.innerHTML
+        };
+        storage2.push(compileName, conf);
+        storage2.set(id, conf);
+        el.dataset[compileName] = id;
+        el.innerHTML = "";
+      }
     }
   );
 }
@@ -1676,9 +1634,10 @@ async function compileValidator(elModels, component, isStatic, html, storage2) {
 var CompileValidator_default = compileValidator;
 
 // src/Attrib/compile/index.js
-async function compile(el, component, isStatic = false, storage2, multipleEventStorage, keys) {
+async function compile(el, component, isStatic = false, storage2, multipleEventStorage, keys, isReInject) {
+  const templateSelector = "[data-template]";
   let map2 = {
-    "[data-template]": {
+    [templateSelector]: {
       handler: CompileTemplate_default,
       name: "template"
     },
@@ -1772,6 +1731,9 @@ async function compile(el, component, isStatic = false, storage2, multipleEventS
   for (let q in query) {
     if (Object.prototype.hasOwnProperty.call(query, q)) {
       if (query[q].length) {
+        if (templateSelector == q && isReInject) {
+          continue;
+        }
         r.push(
           map2[q].handler.apply(this, [
             query[q],
@@ -2080,6 +2042,9 @@ async function HandlerTemplate(prop, newValue, prevValue, component, html, stora
       let sel = sub.sel;
       let bind = sub.bind;
       let template = sub.template;
+      if (Utils_default.is.isArray(newValue[bind]) && !newValue[bind].length) {
+        return;
+      }
       let els = html.querySelectorAllIncluded(`[data-${name}=${sel}]`);
       let compiled = await templateCompile(template.trim(), newValue);
       let render = Utils_default.is.isString(compiled) ? compiled : compiled.render;
@@ -2196,6 +2161,7 @@ var HandlerSubTemplate_default = HandlerSubTemplate;
 
 // src/Attrib/index.js
 async function set(prop, newValue, prevValue, component, storage2, templateCompile, actions) {
+  const isTarget = component.name == "static_form";
   let dynamicActions = [
     "bind",
     "attr",
@@ -2249,9 +2215,9 @@ async function set(prop, newValue, prevValue, component, storage2, templateCompi
     })
   );
 }
-async function inject(el, component, isStatic = false, storage2, multipleEventStorage, keys) {
+async function inject(el, component, isStatic = false, storage2, multipleEventStorage, keys, isReInject) {
   el = el.el || el;
-  return await compile_default(el, component, isStatic, storage2, multipleEventStorage, keys);
+  return await compile_default(el, component, isStatic, storage2, multipleEventStorage, keys, isReInject);
 }
 var Attrib = class {
   constructor(storage2, multipleEventStorage, templateCompile) {
@@ -2260,8 +2226,8 @@ var Attrib = class {
     this.templateCompile = templateCompile;
     this.cache = {};
   }
-  set(prop, newValue, prevValue, component) {
-    return set(
+  async set(prop, newValue, prevValue, component) {
+    const setted = await set(
       prop,
       newValue,
       prevValue,
@@ -2270,13 +2236,14 @@ var Attrib = class {
       this.templateCompile,
       this.cache[component]
     );
+    return setted;
   }
   async inject(el, component, isStatic = false, isReInject = false) {
     let compiled = {};
     if (!isReInject && this.cache[component]) {
-      compiled = await inject(el, component, isStatic, this.storage, this.multipleEventStorage, this.cache[component]);
+      compiled = await inject(el, component, isStatic, this.storage, this.multipleEventStorage, this.cache[component], isReInject);
     } else {
-      compiled = await inject(el, component, isStatic, this.storage, this.multipleEventStorage);
+      compiled = await inject(el, component, isStatic, this.storage, this.multipleEventStorage, void 0, isReInject);
     }
     if (!this.cache[component] && !isReInject) {
       this.cache[component] = compiled;
@@ -2513,7 +2480,15 @@ var storage_default = class {
   open() {
     let decoded;
     if (this.type == "session") {
-      decoded = JSON.parse(sessionStorage[this.name]);
+      try {
+        decoded = JSON.parse(sessionStorage[this.name]);
+      } catch (err) {
+        this.init();
+        try {
+          decoded = JSON.parse(sessionStorage[this.name]);
+        } catch (err2) {
+        }
+      }
       return decoded[this.name];
     } else if (this.type == "local") {
       decoded = JSON.parse(localStorage[this.name]);
@@ -3184,7 +3159,7 @@ var Component = class {
       let el = this.$templating.createElement(this.customData, this.html.getElement());
       this._recacheFromTemplating(el);
       this.html.replaceDataSrc();
-      this.template.isTemplate && this.html.appendTo(root, cleaned);
+      this.template.isTemplate && await this.html.appendTo(root, cleaned);
       await this._replaceRouter();
       await this._findRef();
       await this._findContainer();
@@ -4362,6 +4337,7 @@ export {
   ElementStorage2 as ElementStorage,
   Observer2 as Observer,
   RouterHistory_default as Router,
+  StorageKit as Storage,
   Toggle_default as Toggle,
   Cake as default
 };

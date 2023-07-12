@@ -46,6 +46,7 @@ export default function (name) {
             return {...storage[name]};
         },
         destroy(key) {
+            // console.log(49,key);
             if (key) {
                 delete storage[name][key];
             } else {
