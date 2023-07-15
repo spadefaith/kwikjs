@@ -133,6 +133,8 @@ export default class Component {
             });
         };
         this.$cache = MemCache.object(`${this.name}/cache`);
+
+        this.dynamicEvents = [];
     }
     async _setCustomData(){
         this.customData = this.options.data && Utils.is.isObject(this.options.data) || {};
@@ -149,10 +151,10 @@ export default class Component {
 
         await this._bindHandlers(handlers, this);
         let _subsribes = await this._bindSubscribe(subscribe, this);
-        await this.$observer._subscriber(_subsribes, this);
+        await this.$observer.subscriber(_subsribes, this);
 
         this.fire = (event, payload) => {
-            return this.$observer.broadcast(this.name, event, payload);
+            return this.$observer.broadcast(this, event, payload);
         };
 
         attachStaticMethod(
@@ -161,9 +163,14 @@ export default class Component {
             (handlerName, handlerFunction) => {
                 return async (variable) => {
                     try {
-                        let payload = await handlerFunction(variable);
 
-                        return this.fire(handlerName, payload);
+                        let payload = await handlerFunction(variable);
+                        
+
+                        return this.fire(handlerName, {
+                            componentHandlerResponse:payload,
+                            event:variable
+                        });
                     } catch (err) {
                         console.log(141, this.name, err);
                         throw err;
@@ -263,8 +270,6 @@ export default class Component {
 
             /**replace the data-src by src */
             this.html.replaceDataSrc();
-
-
     
 
             /**append the html if template type in the root */
@@ -291,6 +296,9 @@ export default class Component {
 
             /**add event to element when rendered */
             await this._addEvent();
+
+            /**set dynamic events */
+            this._setDynamicEvents(options.events);
 
             /**reset if multiple type */
             multiple && (await this._hardReset());
@@ -811,6 +819,8 @@ export default class Component {
         this.scopeHistory={};
         this.store = {};
         this.$scopeData = {};
+        //clear dynamic events;
+        this.dynamicEvents.length = 0;
 
         this.isConnected = false;
         this.isReady = false;
@@ -840,30 +850,20 @@ export default class Component {
             isStopPropagation
         ) {
             return function (e) {
-                // console.log(512,e);
-                // console.log(509, !isPreventDefault, component, event);
                 if (!isPreventDefault) {
                     e.preventDefault();
                 }
                 if (isStopPropagation) {
                     e.stopPropagation();
                 }
+
                 $this.fire[event](e);
-                // $this.$observer.broadcast(component, event, e);
             };
         }
-
-        // setTimeout(()=>{
-        //     this.name == "TriggerList" && console.log(626, this.attribStorage.get("event"));
-        // },2000);
 
         this.targets = (this.attribStorage.get("event") || []).filter(
             (item) => item._component == this.name
         );
-
-        // this.name == "FormAccount" && console.log(841,this.targets);
-
-        // this.name == "TriggerList" && console.log(624, "add event",this.targets);
 
 
         this.targets.forEach((cf) => {
@@ -871,19 +871,11 @@ export default class Component {
 
             let el = this.html.querySelectorIncluded(`[data-event=${sel}]`);
 
-            // console.log(871,`[data-event=${sel}]`,el, this.html);
-
-            // console.log(506, this.name, el, `[data-event=${sel}]`);
-
-            // this.name == "FormAccount" && console.log(507, this.name, el, `[data-event=${sel}]`);
-
             let _event = event;
 
             let place = event.substring(0, 2);
             let isPreventDefault = place.includes("~"); //default to true;
             let isStopPropagation = place.includes("^"); //default to false;
-
-            // console.log(542,isPreventDefault);
 
             if (isPreventDefault || isStopPropagation) {
                 _event = event.slice(1);
@@ -894,11 +886,7 @@ export default class Component {
                 }
             }
 
-
-            
             let cache = new ElementStorage(el);
-
-
 
             if (!cache.get("__cake__events")) {
                 cache.set("__cake__events", {});
@@ -906,11 +894,6 @@ export default class Component {
 
             let store = cache.get("__cake__events");
 
-            // console.log(507, store);
-
-            // console.log(593, this.name, el, `[data-event=${sel}]`);
-
-            // this.name == "form" && console.log(633, this.name, cb, el);
 
             if (!store[cb] && el) {
                 Utils.element.addEventListener(
@@ -1074,6 +1057,26 @@ export default class Component {
     }
     _setTemplateCompile(templateCompile) {
         this._templateCompile = templateCompile;
+    }
+    _setDynamicEvents(events){
+        if(!events){
+            return;
+        }
+        let isObject = Utils.is.isObject(events);
+        if(isObject){
+            Utils.array.each(events,({key, value})=>{
+                const event = `${this.name}-${key}`;
+                if(Utils.is.isArray(value)){
+                    value.forEach(handler=>{
+                        this.dynamicEvents.push({event, handler});
+                    });
+                } else if(Utils.is.isFunction(value)){
+                    this.dynamicEvents.push({event, handler:value});
+                }
+            });
+
+
+        }
     }
     on(event, handler) {
         this._bindHandlers({

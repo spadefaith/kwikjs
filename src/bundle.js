@@ -4,6 +4,79 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
+// src/MemCache/Object.js
+var storage = {};
+function Object_default(name) {
+  if (!storage[name]) {
+    storage[name] = {};
+  }
+  return {
+    set(key, value) {
+      storage[name][key] = value;
+      return true;
+    },
+    push(key, value) {
+      if (!storage[name][key]) {
+        storage[name][key] = [];
+      }
+      storage[name][key].push(value);
+    },
+    get(key) {
+      if (key) {
+        let cloned = { ...storage[name] };
+        return cloned[key];
+      } else {
+        return { ...storage[name] };
+      }
+    },
+    getAll() {
+      return { ...storage[name] };
+    },
+    destroy(key) {
+      if (key) {
+        delete storage[name][key];
+      } else {
+        storage[name] = {};
+      }
+      return true;
+    }
+  };
+}
+
+// src/MemCache/Element.js
+var Element_default = class {
+  constructor(el) {
+    this.el = el;
+    if (!this.el) {
+      this.el = document.createElement("div");
+      el.dataset.cache = true;
+      document.head.append(el);
+    }
+    if (!this.el.__storage) {
+      this.el.__storage = {};
+    }
+  }
+  set(key, value) {
+    this.el.__storage[key] = value;
+  }
+  get(key) {
+    return key == void 0 ? this.el.__storage : this.el.__storage[key];
+  }
+  remove(key) {
+    if (key == void 0) {
+      this.el.__storage = {};
+    } else {
+      delete this.el.__storage[key];
+    }
+  }
+};
+
+// src/MemCache/index.js
+var MemCache_default = {
+  object: Object_default,
+  element: Element_default
+};
+
 // src/Utils/UtilsFunction.js
 var UtilsFunction_exports = {};
 __export(UtilsFunction_exports, {
@@ -199,106 +272,6 @@ function recurse(array, callback) {
     }
   });
 }
-
-// src/MemCache/Object.js
-var storage = {};
-function Object_default(name) {
-  if (!storage[name]) {
-    storage[name] = {};
-  }
-  return {
-    set(key, value) {
-      storage[name][key] = value;
-      return true;
-    },
-    push(key, value) {
-      if (!storage[name][key]) {
-        storage[name][key] = [];
-      }
-      storage[name][key].push(value);
-    },
-    get(key) {
-      if (key) {
-        let cloned = { ...storage[name] };
-        return cloned[key];
-      } else {
-        return { ...storage[name] };
-      }
-    },
-    getAll() {
-      return { ...storage[name] };
-    },
-    destroy(key) {
-      if (key) {
-        delete storage[name][key];
-      } else {
-        storage[name] = {};
-      }
-      return true;
-    }
-  };
-}
-
-// src/MemCache/Element.js
-var Element_default = class {
-  constructor(el) {
-    this.el = el;
-    if (!this.el) {
-      this.el = document.createElement("div");
-      el.dataset.cache = true;
-      document.head.append(el);
-    }
-    if (!this.el.__storage) {
-      this.el.__storage = {};
-    }
-  }
-  set(key, value) {
-    this.el.__storage[key] = value;
-  }
-  get(key) {
-    return key == void 0 ? this.el.__storage : this.el.__storage[key];
-  }
-  remove(key) {
-    if (key == void 0) {
-      this.el.__storage = {};
-    } else {
-      delete this.el.__storage[key];
-    }
-  }
-};
-
-// src/MemCache/index.js
-var MemCache_default = {
-  object: Object_default,
-  element: Element_default
-};
-
-// src/Observer/Observer.js
-var Observer = class {
-  constructor() {
-    this.store = MemCache_default.object("__observer");
-  }
-  async broadcast(event, payload) {
-    let subscribers = this.store.get(event);
-    if (subscribers && subscribers.length) {
-      return recurse(subscribers, (handler, index) => {
-        return handler(payload);
-      }).then((res) => {
-        subscribers = null;
-        return res;
-      });
-    }
-  }
-  register(event, handler) {
-    if (!this.store.get(event)) {
-      this.store.set(event, []);
-    }
-    let subscribers = this.store.get(event);
-    subscribers.push(handler);
-    this.store.set(event, subscribers);
-    subscribers = null;
-  }
-};
 
 // src/Utils/UtilsElement.js
 var UtilsElement_exports = {};
@@ -1014,6 +987,40 @@ var Utils_default = {
   form: UtilsForm_exports
 };
 
+// src/Observer/Observer.ts
+var Observer = class {
+  constructor() {
+    this.store = MemCache_default.object("__observer");
+  }
+  async broadcast(event, payload, hookEvents) {
+    const handlers = [];
+    let subscribers = this.store.get(event);
+    subscribers && subscribers.forEach((subscriber) => handlers.push(subscriber));
+    if (hookEvents && Utils_default.is.isArray(hookEvents)) {
+      hookEvents.filter((item) => {
+        return item.event == event;
+      }).forEach((item) => {
+        handlers.push(item.handler);
+      });
+    }
+    if (handlers && Utils_default.is.isArray(handlers)) {
+      const recur = await recurse(handlers, (callback, index) => {
+        return callback(payload);
+      });
+      return recur && (recur.length == 1 ? recur[0] : recur);
+    }
+  }
+  register(event, handler) {
+    if (!this.store.get(event)) {
+      this.store.set(event, []);
+    }
+    let subscribers = this.store.get(event);
+    subscribers.push(handler);
+    this.store.set(event, subscribers);
+    subscribers = null;
+  }
+};
+
 // src/Observer/index.js
 var Observer2 = class {
   constructor(name) {
@@ -1022,7 +1029,7 @@ var Observer2 = class {
     this.subscribe = [];
     this.observer = new Observer();
   }
-  _subscriber(_components = {}, ctx) {
+  subscriber(_components = {}, ctx) {
     if (!Object.keys(_components).length) {
       return;
     }
@@ -1040,14 +1047,8 @@ var Observer2 = class {
     }
   }
   async broadcast(component, event, payload) {
-    const key = `${component}-${event}`;
-    let subscriber = this.observer.store.get(key);
-    if (subscriber && Utils_default.is.isArray(subscriber)) {
-      const recur = await recurse(subscriber, (callback, index) => {
-        return callback(payload);
-      });
-      return recur && (recur.length == 1 ? recur[0] : recur);
-    }
+    const key = `${component.name}-${event}`;
+    return this.observer.broadcast(key, payload, component.dynamicEvents);
   }
   _setComponents(components) {
     this.components = components;
@@ -3072,6 +3073,7 @@ var Component = class {
       });
     };
     this.$cache = MemCache_default.object(`${this.name}/cache`);
+    this.dynamicEvents = [];
   }
   async _setCustomData() {
     this.customData = this.options.data && Utils_default.is.isObject(this.options.data) || {};
@@ -3086,9 +3088,9 @@ var Component = class {
     let { handlers, subscribe, root } = opts;
     await this._bindHandlers(handlers, this);
     let _subsribes = await this._bindSubscribe(subscribe, this);
-    await this.$observer._subscriber(_subsribes, this);
+    await this.$observer.subscriber(_subsribes, this);
     this.fire = (event, payload) => {
-      return this.$observer.broadcast(this.name, event, payload);
+      return this.$observer.broadcast(this, event, payload);
     };
     attachStaticMethod(
       this.fire,
@@ -3097,7 +3099,10 @@ var Component = class {
         return async (variable) => {
           try {
             let payload = await handlerFunction(variable);
-            return this.fire(handlerName, payload);
+            return this.fire(handlerName, {
+              componentHandlerResponse: payload,
+              event: variable
+            });
           } catch (err) {
             console.log(141, this.name, err);
             throw err;
@@ -3167,6 +3172,7 @@ var Component = class {
       this._activateValidator();
       this.fire.isConnected && await this.fire.isConnected(payload, true);
       await this._addEvent();
+      this._setDynamicEvents(options.events);
       multiple && await this._hardReset();
       await this._autoScope();
     } catch (err) {
@@ -3527,6 +3533,7 @@ var Component = class {
     this.scopeHistory = {};
     this.store = {};
     this.$scopeData = {};
+    this.dynamicEvents.length = 0;
     this.isConnected = false;
     this.isReady = false;
     if (this.renderQueing && this.renderQueing.length) {
@@ -3675,6 +3682,24 @@ var Component = class {
   }
   _setTemplateCompile(templateCompile) {
     this._templateCompile = templateCompile;
+  }
+  _setDynamicEvents(events) {
+    if (!events) {
+      return;
+    }
+    let isObject3 = Utils_default.is.isObject(events);
+    if (isObject3) {
+      Utils_default.array.each(events, ({ key, value }) => {
+        const event = `${this.name}-${key}`;
+        if (Utils_default.is.isArray(value)) {
+          value.forEach((handler) => {
+            this.dynamicEvents.push({ event, handler });
+          });
+        } else if (Utils_default.is.isFunction(value)) {
+          this.dynamicEvents.push({ event, handler: value });
+        }
+      });
+    }
   }
   on(event, handler) {
     this._bindHandlers({

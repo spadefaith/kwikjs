@@ -1,0 +1,11 @@
+
+  {
+    "compilerOptions": {
+
+      "strict": false,                   
+      "skipLibCheck": true        ,
+      "emitDeclarationOnly": true,
+      "declaration": true          
+    },
+    "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  }

@@ -1,8 +1,8 @@
 "use strict";
 
-import { recurse } from "../Utils/UtilsFunction";
+
 import observer from "./Observer";
-import Utils from "../Utils";
+
 export default class Observer {
     constructor(name) {
         this.name = name;
@@ -10,7 +10,7 @@ export default class Observer {
         this.subscribe = [];
         this.observer = new observer();
     }
-    _subscriber(_components = {}, ctx) {
+    subscriber(_components = {}, ctx) {
         // console.log(71,_components);
         if (!Object.keys(_components).length) {
             return;
@@ -39,22 +39,8 @@ export default class Observer {
          *
          */
 
-        const key = `${component}-${event}`;
-        let subscriber = this.observer.store.get(key);
-
-        if(subscriber && Utils.is.isArray(subscriber)){
-
-            
-            const recur = await recurse(subscriber, (callback, index)=>{
-
-                return callback(payload);
-            });
-
-
-            
-
-            return recur && (recur.length == 1 ? recur[0]: recur);
-        }
+        const key = `${component.name}-${event}`;
+        return this.observer.broadcast(key, payload, component.dynamicEvents);
     }
 
     _setComponents(components){
