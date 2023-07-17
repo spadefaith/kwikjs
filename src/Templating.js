@@ -23,11 +23,11 @@ function _bindReplace(obj, string, lefttag, righttag) {
     return string;
 }
 
-function toElement(template) {
+function toElement(template, raw) {
     let fr = document.createElement("template");
     fr.innerHTML = template;
 
-    return fr.content.children;
+    return raw? fr:fr.content.children;
 }
 
 export default class {
@@ -64,7 +64,7 @@ export default class {
 
                     // console.log(42, dd, bindData);
 
-                    let element = toElement(bindData, tag)[0];
+                    let element = toElement(bindData)[0];
                     if (isConvert) {
                         element = element.outerHTML;
                     }
@@ -87,7 +87,7 @@ export default class {
                 // console.log(60, this.tag);
                 // console.log(61, bindData);
 
-                let element = toElement(bindData, tag)[0];
+                let element = toElement(bindData)[0];
                 if (isConvert) {
                     element = element.outerHTML;
                 }
@@ -96,7 +96,7 @@ export default class {
         } else {
             let isString = typeof template == "string";
             let tag = isString ? _getTag(template) : template.tagName;
-            return toElement(template, tag)[0];
+            return toElement(template)[0];
         }
     }
 }

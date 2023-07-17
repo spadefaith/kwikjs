@@ -23,7 +23,7 @@ export default class Observer{
         subscribers && subscribers.forEach((subscriber: DynamicEventItemType) => handlers.push(subscriber));
 
         //push dynamic events
-
+        
 
 
         if(hookEvents && Utils.is.isArray(hookEvents)){
@@ -36,12 +36,13 @@ export default class Observer{
             });
         }
 
-
-        if(handlers && Utils.is.isArray(handlers)){
+        if(handlers && Utils.is.isArray(handlers) && handlers.length){
             const recur = await recurse(handlers, (callback, index)=>{
                 return callback(payload);
             });
             return recur && (recur.length == 1 ? recur[0]: recur);
+        } else {
+            return payload;
         }
     }
     register(event, handler){

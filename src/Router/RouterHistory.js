@@ -43,6 +43,10 @@ class RouterHistory {
         this.config = {routes,options};
         this.state = {};
 
+
+
+    }
+    init(){
         this._parseOptions();
         this._parseRoutes();
         this.onConnected();
@@ -70,6 +74,7 @@ class RouterHistory {
             }
 
             let newPath = this._addParams(origin, state);
+
             if(opts.replace){
                 location.replace(newPath);
             } else {
@@ -84,6 +89,7 @@ class RouterHistory {
                 let parsed = this._parseUrl(path);
 
                 let search = parsed.search;
+
     
                 if(search){
                     if(opts.params && search){
@@ -182,7 +188,7 @@ class RouterHistory {
             urlClass = new URL(url);
         }
 
-        let o = {};
+        let o = {search:{}};
         if(urlClass){
             o.pathname = urlClass.pathname;
             o.origin = urlClass.origin;
@@ -190,7 +196,6 @@ class RouterHistory {
     
             if(urlClass.search){
                 let params = new URLSearchParams(urlClass.search);
-                o.search = {};
                 for (let [key, value] of params.entries()){
                     o.search[key] = value;
                 }
@@ -207,6 +212,8 @@ class RouterHistory {
                 searchParams.append(key, params[key]);
             }
         }
+
+
         return `${path}?${searchParams.toString()}`;
     }
     async _getConfigByName(name, parsedOnly = false){
@@ -242,6 +249,8 @@ class RouterHistory {
         return null;
     }
     async _getConfigByPath(_path, parsedOnly = false){
+
+
         let {search, pathname, searchParams} = this._parseUrl(_path);
 
         /**
@@ -259,6 +268,9 @@ class RouterHistory {
             let parseRoute = this._parseUrl(pt);
             let cf = this.config.routes[pt];
             let {strict} = cf;
+
+
+
             if(strict || strict == undefined){
                 //exact same
                 if(_path == pt){
@@ -428,6 +440,7 @@ class RouterHistory {
         try {
             /**destroy previous components*/
             return await Utils.function.recurse(components || [],async (component, index)=>{
+
                 if(component){
                     if(component?.fire?.destroy){
                         await component.fire.destroy();
@@ -448,6 +461,7 @@ class RouterHistory {
         let {pathname, search} = window.location;
         let state = history.state;
 
+
         if(state && state.name && state.components){
             this._updateProperty({
                 name:state.name,
@@ -460,7 +474,9 @@ class RouterHistory {
         } else {
             let config = {};
             let path = null;
+
             let found = await this._getConfigByPath(search?`${pathname}${search}`:pathname);
+
 
 
             if(found){

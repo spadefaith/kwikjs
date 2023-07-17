@@ -7,7 +7,7 @@ import Utils from "./Utils";
 
 import MemCache from "./MemCache";
 
-import Templating from "./Templating";
+import Templating, { toElement } from "./Templating";
 
 import Storage from "./Storage";
 
@@ -27,8 +27,10 @@ async function createElement(template) {
             `it might be theres no template in component - ${this.name}`
         );
     }
+
     return element;
 }
+
 
 function getAttributes(element) {
     let o = {};
@@ -121,6 +123,11 @@ export default class Component {
         this.scopeHistory = {};
         this.store = {};
 
+        this.$parent =  {};
+        this.$child =  options.child || {};
+        this.isPage = options.isPage || false;
+        this.$common = options.common || {};
+
 
         this.$storage = function(type = "session"){
             if(!["session","local"].includes(type)){
@@ -166,6 +173,7 @@ export default class Component {
 
                         let payload = await handlerFunction(variable);
                         
+       
 
                         return this.fire(handlerName, {
                             componentHandlerResponse:payload,
@@ -193,6 +201,8 @@ export default class Component {
 
     async render(options = {}) {
         try {
+
+
             if(this.template.isStatic){
                 return;
             }
@@ -220,6 +230,8 @@ export default class Component {
             let emit = options.emit || {};
             this.customData = options.data || this.customData;
             this.customCss = options.css || this.customCss;
+
+
 
             if (typeof root == "string") {
                 let sel = `${root}`;
@@ -273,7 +285,7 @@ export default class Component {
     
 
             /**append the html if template type in the root */
-            this.template.isTemplate && await this.html.appendTo(root, cleaned);
+            (this.template.isTemplate || this.template.isString )&& await this.html.appendTo(root, cleaned);
             
             /**replace data-router with hash */
             await this._replaceRouter();
@@ -290,6 +302,9 @@ export default class Component {
             /**activate validator if form type */
             this._activateValidator();
 
+            /**set dynamic events */
+            this._setDynamicEvents(options.events);
+
             /**call isConnected hook */
             this.fire.isConnected &&
                 (await this.fire.isConnected(payload, true));
@@ -297,8 +312,7 @@ export default class Component {
             /**add event to element when rendered */
             await this._addEvent();
 
-            /**set dynamic events */
-            this._setDynamicEvents(options.events);
+
 
             /**reset if multiple type */
             multiple && (await this._hardReset());
@@ -387,7 +401,11 @@ export default class Component {
     async _renderDynamic() {}
 
     _updateRoute() {
-        // console.log(358, 356, this.name, this.$router);
+
+        if(!this.$router){
+            console.log(this);
+        }
+
         let route = this.$router._getCurrentRoute();
 
 
@@ -619,104 +637,72 @@ export default class Component {
 
     _parseOptions(options) {
         let template = options.template;
-
-
-
         this.template = {
             isStatic: false,
             isTemplate: false,
+            isString: false,
             has:false,
             isID:false,
         };
-
-
         if (template) {
-
-
             this.template.has = true;
-            this.template.element = document.querySelector(template);
-
-
 
             if (template.substring(0, 1) == "#") {
+                this.template.element = document.querySelector(template);
                 this.template.isID = true;
-
                 if(this.template.element){
                     this.template.isTemplate = this.template.element
                         .toString()
                         .includes("Template");
-                    
                     if(!this.template.isTemplate){
                         this.template.isStatic = true;
                     }
                 } else {
                     throw new Error(`${template} is not found in the DOM`);
                 }
-                
+            } else if(Utils.is.isString(template)){
+                this.template.element = toElement(template, true);
+
+                this.template.isID = false;
+                if(this.template.element){
+                    this.template.isString = true;
+
+                } else {
+                    throw new Error(`${template} is not found in the DOM`);
+                }
+
+                // console.log(662,el);
             }
         } else {
             this.template.has = false;
             this.template.element = null;
-            
         }
-
-
         this.type = options.type || "view";
-
-        // console.log(538, this.name, this.template);
-
     }
 
     async _createElement() {
-        let isSelector = this.template.isID;
-        if (!isSelector) return;
-        let query = this.template.element;
 
+
+        let query = this.template.element;
         if (!query) {
             throw new Error(`the template for ${this.name} is not found with.`);
         }
-
         let element = null;
-
         if (this.template.isTemplate) {
             element = await createElement(query);
-            element.cake_component = this.name;
-            element.kwik_component = this.name;
         } else if(this.template.isStatic) {
             element = query;
-
-
-            if (!element) {
-                throw new Error(
-                    `it might be theres no template in component - ${this.name}`
-                );
-            }
-            element.cake_component = this.name;
-            // this.isStatic = true;
+        } else if (this.template.isString){
+            element = await createElement(query);
         }
-
-        // console.log(element.outerHTML);
-
-        // console.log(this.name,'parsing template');
-
-        // this.html = new Piece(element);
-
-        
-        
+        element.kwik_component = this.name;
+        element.cake_component = this.name;
         this._cloneTemplate(element);
-
-        // console.log(669,this.html, this.template.isStatic);
-
         await this._parseHTML(this.html, this.template.isStatic);
-        // console.log(663, "done parsing");
-
         await this._cacheTemplate(element);
     }
     async _hardReset() {
-        // this.name == "nav" && console.log("cloned");
 
-        // this.name == "nav" && console.log(489, this.original.el.innerHTML);
-        // this.html = await this.original.cloneNode();
         this.html && await this.html.remove(this.name);
         await this._eventStorage.destroy();
         this._reUseTemplate();
@@ -1126,5 +1112,10 @@ export default class Component {
         // console.log(1088,cloned);
 
         return new Component(name, template || this.htmlTemplateSelector, cloned);
+    }
+
+
+    _setPage(page){
+        this.$parent = page;
     }
 }

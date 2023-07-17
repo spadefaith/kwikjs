@@ -658,17 +658,16 @@ var UtilsTemplate_exports = {};
 __export(UtilsTemplate_exports, {
   getContent: () => getContent
 });
-function _collectContent(template) {
+function _collectContent(content) {
   let cf = null;
-  let temp = template.cloneNode(true);
   let fr = document.createDocumentFragment();
-  let styles = temp.content.querySelector("style");
+  let styles = content.querySelector("style");
   if (styles) {
     fr.appendChild(styles);
   }
   let others = [];
-  for (let o = 0; o < temp.content.children.length; o++) {
-    let el = temp.content.children[0];
+  for (let o = 0; o < content.children.length; o++) {
+    let el = content.children[0];
     others.push(el);
   }
   cf = { style: fr.children[0], others };
@@ -728,7 +727,7 @@ function _parseHTML(others) {
   return parent || false;
 }
 function getContent(template, isConvert) {
-  let _collectedContent = _collectContent(template);
+  let _collectedContent = _collectContent(template.cloneNode(true).content);
   let style = _collectedContent.style;
   let others = _collectedContent.others;
   let styles = _parseStyle(style);
@@ -1003,11 +1002,13 @@ var Observer = class {
         handlers.push(item.handler);
       });
     }
-    if (handlers && Utils_default.is.isArray(handlers)) {
+    if (handlers && Utils_default.is.isArray(handlers) && handlers.length) {
       const recur = await recurse(handlers, (callback, index) => {
         return callback(payload);
       });
       return recur && (recur.length == 1 ? recur[0] : recur);
+    } else {
+      return payload;
     }
   }
   register(event, handler) {
@@ -1341,6 +1342,9 @@ async function compileClass(elModels, component, isStatic, html, storage2) {
       let cls = gr;
       for (let c = 0; c < cls.length; c++) {
         let clItem = cls[c];
+        if (clItem.includes("ck-")) {
+          continue;
+        }
         let _sp1 = clItem.split("&&");
         let test = _sp1[0];
         let className = _sp1[1];
@@ -1936,10 +1940,10 @@ function _bindReplace(obj, string, lefttag, righttag) {
   }
   return string;
 }
-function toElement2(template) {
+function toElement2(template, raw) {
   let fr = document.createElement("template");
   fr.innerHTML = template;
-  return fr.content.children;
+  return raw ? fr : fr.content.children;
 }
 var Templating_default = class {
   constructor(options) {
@@ -1966,7 +1970,7 @@ var Templating_default = class {
             this.lefttag,
             this.righttag
           );
-          let element = toElement2(bindData, tag)[0];
+          let element = toElement2(bindData)[0];
           if (isConvert) {
             element = element.outerHTML;
           }
@@ -1983,7 +1987,7 @@ var Templating_default = class {
           this.lefttag,
           this.righttag
         );
-        let element = toElement2(bindData, tag)[0];
+        let element = toElement2(bindData)[0];
         if (isConvert) {
           element = element.outerHTML;
         }
@@ -1992,7 +1996,7 @@ var Templating_default = class {
     } else {
       let isString2 = typeof template == "string";
       let tag = isString2 ? _getTag(template) : template.tagName;
-      return toElement2(template, tag)[0];
+      return toElement2(template)[0];
     }
   }
 };
@@ -3062,6 +3066,10 @@ var Component = class {
     this._eventStorage = MemCache_default.object(`${this.name}-cache`);
     this.scopeHistory = {};
     this.store = {};
+    this.$parent = {};
+    this.$child = options.child || {};
+    this.isPage = options.isPage || false;
+    this.$common = options.common || {};
     this.$storage = function(type = "session") {
       if (!["session", "local"].includes(type)) {
         throw new Error("storage could be either, local or session");
@@ -3164,15 +3172,15 @@ var Component = class {
       let el = this.$templating.createElement(this.customData, this.html.getElement());
       this._recacheFromTemplating(el);
       this.html.replaceDataSrc();
-      this.template.isTemplate && await this.html.appendTo(root, cleaned);
+      (this.template.isTemplate || this.template.isString) && await this.html.appendTo(root, cleaned);
       await this._replaceRouter();
       await this._findRef();
       await this._findContainer();
       this._setToggler();
       this._activateValidator();
+      this._setDynamicEvents(options.events);
       this.fire.isConnected && await this.fire.isConnected(payload, true);
       await this._addEvent();
-      this._setDynamicEvents(options.events);
       multiple && await this._hardReset();
       await this._autoScope();
     } catch (err) {
@@ -3233,6 +3241,9 @@ var Component = class {
   async _renderDynamic() {
   }
   _updateRoute() {
+    if (!this.$router) {
+      console.log(this);
+    }
     let route = this.$router._getCurrentRoute();
     if (!route) {
       return;
@@ -3402,19 +3413,28 @@ var Component = class {
     this.template = {
       isStatic: false,
       isTemplate: false,
+      isString: false,
       has: false,
       isID: false
     };
     if (template) {
       this.template.has = true;
-      this.template.element = document.querySelector(template);
       if (template.substring(0, 1) == "#") {
+        this.template.element = document.querySelector(template);
         this.template.isID = true;
         if (this.template.element) {
           this.template.isTemplate = this.template.element.toString().includes("Template");
           if (!this.template.isTemplate) {
             this.template.isStatic = true;
           }
+        } else {
+          throw new Error(`${template} is not found in the DOM`);
+        }
+      } else if (Utils_default.is.isString(template)) {
+        this.template.element = toElement2(template, true);
+        this.template.isID = false;
+        if (this.template.element) {
+          this.template.isString = true;
         } else {
           throw new Error(`${template} is not found in the DOM`);
         }
@@ -3426,9 +3446,6 @@ var Component = class {
     this.type = options.type || "view";
   }
   async _createElement() {
-    let isSelector = this.template.isID;
-    if (!isSelector)
-      return;
     let query = this.template.element;
     if (!query) {
       throw new Error(`the template for ${this.name} is not found with.`);
@@ -3436,17 +3453,13 @@ var Component = class {
     let element = null;
     if (this.template.isTemplate) {
       element = await createElement(query);
-      element.cake_component = this.name;
-      element.kwik_component = this.name;
     } else if (this.template.isStatic) {
       element = query;
-      if (!element) {
-        throw new Error(
-          `it might be theres no template in component - ${this.name}`
-        );
-      }
-      element.cake_component = this.name;
+    } else if (this.template.isString) {
+      element = await createElement(query);
     }
+    element.kwik_component = this.name;
+    element.cake_component = this.name;
     this._cloneTemplate(element);
     await this._parseHTML(this.html, this.template.isStatic);
     await this._cacheTemplate(element);
@@ -3740,6 +3753,9 @@ var Component = class {
     }
     return new Component(name, template || this.htmlTemplateSelector, cloned);
   }
+  _setPage(page) {
+    this.$parent = page;
+  }
 };
 
 // src/Router/RouterHistory.js
@@ -3747,6 +3763,8 @@ var RouterHistory = class {
   constructor(name, routes, options) {
     this.config = { routes, options };
     this.state = {};
+  }
+  init() {
     this._parseOptions();
     this._parseRoutes();
     this.onConnected();
@@ -3857,13 +3875,12 @@ var RouterHistory = class {
       let url = `http://localhost${path}`;
       urlClass = new URL(url);
     }
-    let o = {};
+    let o = { search: {} };
     if (urlClass) {
       o.pathname = urlClass.pathname;
       o.origin = urlClass.origin;
       if (urlClass.search) {
         let params = new URLSearchParams(urlClass.search);
-        o.search = {};
         for (let [key, value] of params.entries()) {
           o.search[key] = value;
         }
@@ -4230,6 +4247,16 @@ var Custom_default = () => {
   };
 };
 
+// src/Page.js
+var Page = class {
+  constructor(name, template, options) {
+    this.opts = options;
+    this.name = name;
+    options.isPage = true;
+    return new Component(name, template, options);
+  }
+};
+
 // src/index.js
 var ElementStorage2 = MemCache_default.element;
 Custom_default();
@@ -4239,6 +4266,9 @@ var Cake = class {
     this.name = opts.name;
     this.defaultRoot = opts.defaultRoot;
     this.components = {};
+    this.pages = {};
+    this.componentsCommon = {};
+    this.routerConfig = {};
     this.globalStorage = function(type = "session") {
       if (!["session", "local"].includes(type)) {
         throw new Error("storage could be either, local or session");
@@ -4259,89 +4289,127 @@ var Cake = class {
   }
   async _register() {
     await this._registerRouter();
-    await this._registerComponents(this.opts.components || []);
+    await this._registerPageCommon();
+    await this._registerComponentCommon();
     if (this.opts.init) {
       const initHandler = this.opts.init.bind(this);
       await initHandler();
     }
-    await this._mountRouter();
+    await this._activateRouter();
+  }
+  _activateRouter() {
+    this.Observer._setComponents(this.components);
+    this.$router.init();
   }
   async _registerRouter() {
     let router = await this.router();
-    for (let route in router.routes) {
-      if (Object.prototype.hasOwnProperty.call(router.routes, route)) {
-        let config = router.routes[route];
-        if (!["Function", "AsyncFunction"].includes(
-          config.constructor.name
-        )) {
-          if (config.components) {
-            this._registerComponents(config.components);
-          } else if (config.page) {
-            this._registerPage(config.page);
-          }
-        }
-      }
-    }
     if (!this.hasRouter) {
       this.$router = new RouterHistory_default(this.name, router.routes, router.options);
       this.hasRouter = true;
     }
-  }
-  _mountRouter() {
-    Object.keys(this.components).forEach((name) => {
-      let component = this.components[name];
-      component._setRouter(this.$router);
-    });
-  }
-  _registerComponents(components) {
-    try {
-      components.forEach((component) => {
-        if (!this.components[component.name]) {
-          component.onInit && this.initSubscriber.push(component.onInit.bind(component));
-          component._setTemplateCompile(this.templateCompile);
-          component._setParent(this.name);
-          component._setObserver(this.Observer);
-          component._setDefaultRoot(this.defaultRoot);
-          component._setStorage(
-            new StorageKit({
-              name: `${this.name}/${component.name}/cache`,
-              storage: "session",
-              child: "object"
-            })
-          );
-          component.options.store && Utils_default.is.isFunction(component.options.store) && component.options.store.bind(component.store)(component);
-          component.options.utils && component.options.utils.bind(component.utils)(component);
-          component._setGlobalStorage(this.globalStorage);
-          component._setGlobalCache(this.globalCache);
-          this.components[component.name] = component;
+    await recurse(Object.keys(router.routes), async (path) => {
+      const config = router.routes[path];
+      if (!["Function", "AsyncFunction"].includes(
+        config.constructor.name
+      )) {
+        if (config.components && Utils_default.is.isArray(config.components)) {
+          await recurse(config.components, async (component) => {
+            if (component.isPage) {
+              await this._registerPage(component);
+            } else {
+              await this._registerComponents(component);
+            }
+          });
         }
+      }
+    });
+    if (this.opts.components && Utils_default.is.isArray(this.opts.components)) {
+      await recurse(this.opts.components, async (component) => {
+        await this._registerComponents(component);
       });
-      this.Observer._setComponents(this.components);
-    } catch (err) {
-      console.log(err);
     }
   }
-  _registerPageComponents(components) {
+  _registerComponents(component) {
     try {
-      components.forEach((component) => {
-        component.setTemplateCompile(this.templateCompile);
-        component.setParent(this.name);
-        component.setDefaultRoot(this.defaultRoot);
+      if (!this.components[component.name]) {
+        if (!component.isPage && Object.keys(component.$common).length) {
+          this.componentsCommon[component.name] = component;
+        }
+        component._setRouter(this.$router);
+        component.onInit && this.initSubscriber.push(component.onInit.bind(component));
+        component._setTemplateCompile(this.templateCompile);
+        component._setParent(this.name);
+        component._setObserver(this.Observer);
+        component._setDefaultRoot(this.defaultRoot);
+        component._setStorage(
+          new StorageKit({
+            name: `${this.name}/${component.name}/cache`,
+            storage: "session",
+            child: "object"
+          })
+        );
+        component.options.store && Utils_default.is.isFunction(component.options.store) && component.options.store.bind(component.store)(component);
+        component.options.utils && component.options.utils.bind(component.utils)(component);
+        component._setGlobalStorage(this.globalStorage);
+        component._setGlobalCache(this.globalCache);
         this.components[component.name] = component;
-      });
+      }
     } catch (err) {
       console.log(err);
     }
   }
-  _registerPage(page) {
+  async _registerPage(page) {
     try {
-      if (page.type != "page") {
+      if (!page.isPage) {
         throw new Error("not an instance of page");
       }
-      this._registerPageComponents(page.components);
+      await this._registerComponents(page);
+      if (Utils_default.is.isObject(page.$child)) {
+        Utils_default.array.each(page.$child, ({ key, value }) => {
+          this._registerComponents(value);
+          value._setPage(page);
+        });
+      }
+      if (!this.pages[page.name]) {
+        this.pages[page.name] = page;
+      }
     } catch (err) {
       console.log(158, err);
     }
+  }
+  _registerPageCommon() {
+    Utils_default.array.each(this.pages, ({ key, value: page }) => {
+      const common = page.$common;
+      if (Utils_default.is.isObject(common)) {
+        Utils_default.array.each(common, ({ key: nameSpace, value: componentName }) => {
+          let component = this.components[componentName];
+          if (component) {
+            page.$common[nameSpace] = component;
+          } else {
+            delete page.$common[nameSpace];
+          }
+        });
+      } else {
+        page.$common = {};
+      }
+    });
+  }
+  _registerComponentCommon() {
+    Utils_default.array.each(this.componentsCommon, ({ key, value: com }) => {
+      const common = com.$common;
+      if (Utils_default.is.isObject(common)) {
+        Utils_default.array.each(common, ({ key: nameSpace, value: componentName }) => {
+          let component = this.components[componentName];
+          if (component) {
+            com.$common[nameSpace] = component;
+          } else {
+            delete com.$common[nameSpace];
+          }
+        });
+      } else {
+        com.$common = {};
+      }
+    });
   }
   _clone(name, component) {
     return component.clone(name);
@@ -4361,6 +4429,7 @@ export {
   Component,
   ElementStorage2 as ElementStorage,
   Observer2 as Observer,
+  Page,
   RouterHistory_default as Router,
   StorageKit as Storage,
   Toggle_default as Toggle,

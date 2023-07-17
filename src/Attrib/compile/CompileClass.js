@@ -13,7 +13,14 @@ async function compileClass(elModels, component, isStatic, html, storage) {
             let cls = gr;
             for (let c = 0; c < cls.length; c++) {
                 let clItem = cls[c];
+
+
+                if(clItem.includes("ck-")){
+                    continue;
+                }
+
                 let _sp1 = clItem.split("&&");
+
                 let test = _sp1[0];
                 let className = _sp1[1];
 

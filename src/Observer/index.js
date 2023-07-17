@@ -38,6 +38,7 @@ export default class Observer {
          * 1. get the subscriber of the event for that component
          *
          */
+        // console.log(41,component.name,event);
 
         const key = `${component.name}-${event}`;
         return this.observer.broadcast(key, payload, component.dynamicEvents);

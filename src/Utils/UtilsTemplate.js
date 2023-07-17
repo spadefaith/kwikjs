@@ -1,17 +1,16 @@
 import MemCache from "../MemCache";
 import * as UtilsElement from "./UtilsElement";
 
-function _collectContent(template) {
+function _collectContent(content) {
     let cf = null;
-    let temp = template.cloneNode(true);
     let fr = document.createDocumentFragment();
-    let styles = temp.content.querySelector("style");
+    let styles = content.querySelector("style");
     if (styles) {
         fr.appendChild(styles);
     }
     let others = [];
-    for (let o = 0; o < temp.content.children.length; o++) {
-        let el = temp.content.children[0];
+    for (let o = 0; o < content.children.length; o++) {
+        let el = content.children[0];
         others.push(el);
     }
     cf = { style: fr.children[0], others };
@@ -82,8 +81,10 @@ function _parseHTML(others) {
     return parent || false;
 }
 
+
 function getContent(template, isConvert) {
-    let _collectedContent = _collectContent(template);
+
+    let _collectedContent = _collectContent(template.cloneNode(true).content);
     let style = _collectedContent.style;
     let others = _collectedContent.others;
 
