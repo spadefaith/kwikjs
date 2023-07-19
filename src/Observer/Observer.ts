@@ -12,12 +12,13 @@ export default class Observer{
     constructor(){
         this.store = MemCache.object("__observer");
     }
-    async broadcast(event:string, payload:any, hookEvents: DynamicEventItemType[]){
+    async broadcast(event:string, payload:any, component){
+
+        const hookEvents: DynamicEventItemType[] = component.dynamicEvents;
         const handlers: any[] = [];
 
+        let subscribers = this.store.get(`${component.name}-${event}`);
 
-
-        let subscribers = this.store.get(event);
 
         //push subscribers of event
         subscribers && subscribers.forEach((subscriber: DynamicEventItemType) => handlers.push(subscriber));
@@ -26,15 +27,18 @@ export default class Observer{
         
 
 
-        if(hookEvents && Utils.is.isArray(hookEvents)){
-
-            hookEvents.filter(item=>{
+        if(hookEvents && Utils.is.isObject(hookEvents)){
+            
+            Object.keys(hookEvents).filter(key=>{
+                const item = hookEvents[key];
                 return item.event == event;
-            }).forEach(item=>{
- 
+            }).forEach(key=>{
+                const item = hookEvents[key];
                 handlers.push(item.handler);
             });
         }
+
+  
 
         if(handlers && Utils.is.isArray(handlers) && handlers.length){
             const recur = await recurse(handlers, (callback, index)=>{

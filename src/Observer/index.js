@@ -23,7 +23,6 @@ export default class Observer {
                     if (Object.prototype.hasOwnProperty.call(events, eventName)) {
                         let event = events[eventName];
                         let bindEvent = event.bind(ctx);
-
                         this.observer.register(`${_c}-${eventName}`, bindEvent);
                     }
                 }
@@ -38,10 +37,8 @@ export default class Observer {
          * 1. get the subscriber of the event for that component
          *
          */
-        // console.log(41,component.name,event);
-
-        const key = `${component.name}-${event}`;
-        return this.observer.broadcast(key, payload, component.dynamicEvents);
+        // const key = `${component.name}-${event}`;
+        return this.observer.broadcast(event, payload, component);
     }
 
     _setComponents(components){

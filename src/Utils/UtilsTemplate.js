@@ -15,6 +15,8 @@ function _collectContent(content) {
     }
     cf = { style: fr.children[0], others };
     fr = null;
+    styles = null;
+    others = null;
 
     return cf;
 }
@@ -66,6 +68,7 @@ function _parseStyle(style) {
             }
         }
     }
+    parsed = null;
 
     return props;
 }
@@ -87,6 +90,8 @@ function getContent(template, isConvert) {
     let _collectedContent = _collectContent(template.cloneNode(true).content);
     let style = _collectedContent.style;
     let others = _collectedContent.others;
+
+    _collectedContent = null;
 
     let styles = _parseStyle(style);
     let element = _parseHTML(others);
@@ -118,6 +123,10 @@ function getContent(template, isConvert) {
 
     appendStyle(s);
 
+    style = null;
+    others = null;
+    sOther = null;
+
     element = isConvert
         ? UtilsElement.toArray(element.children)
         : element.innerHTML;
@@ -131,6 +140,7 @@ function appendStyle(str) {
     let style = document.createElement("style");
     style.innerHTML = str;
     document.head.appendChild(style);
+    style = null;
 }
 
 export { getContent };

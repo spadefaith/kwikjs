@@ -19,6 +19,7 @@ function toArray(elements, reversed = false) {
                 b.push(elements[a]);
             }
         }
+        elements = null;
         return b;
     } else if (!isArray(elements)) {
         return [elements];
@@ -34,7 +35,7 @@ function querySelectorIncluded(element, selector, attr, val) {
     // console.trace();
     if (!attr && !val) {
         let qu = element.closest(selector);
-
+        query= null;
         return qu || null;
     } else if (!!attr && !!val) {
         return element.getAttribute(attr) == val ? element : null;
@@ -53,24 +54,6 @@ function querySelectorAllIncluded(element, selector, attr, val, isLog) {
         q = [];
     }
 
-    if (isLog) {
-        // console.log(
-        //     58,
-        //     element,
-        //     selector,
-        //     q,
-        //     element.closest("[data-template]")
-        // );
-        // console.log(
-        //     57,
-        //     selector,
-        //     element.querySelectorAll(":not([data-template]) > [data-event]"),
-        //     element.querySelectorAll(":not([data-template]) > [data-event]"),
-        //     element
-        //         .querySelectorAll(":not([data-template]) > [data-event]")[0]
-        //         .closest("[data-template]")
-        // );
-    }
 
     if (selector) {
         q = toArray(element.querySelectorAll(selector));
@@ -90,6 +73,7 @@ function querySelectorAllIncluded(element, selector, attr, val, isLog) {
         let qu = element.closest(selector);
         qu == element && q.push(qu);
     }
+
     return q;
 }
 
@@ -105,6 +89,7 @@ function classNameTogglerByDataName(elements, dataName, activeClass) {
             }
         }
     }
+    elements = null;
 }
 
 function replaceDataSrc(root) {

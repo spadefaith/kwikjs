@@ -75,9 +75,6 @@ async function HandlerTemplate(
         );
         
 
-        // component == "static_form" && console.log(65, newValue);
-        // component == "static_form" && console.log(66, configs);
-
         if (!configs.length) return;
         for (let s = 0; s < configs.length; s++) {
             let sub = configs[s];
@@ -94,18 +91,7 @@ async function HandlerTemplate(
             
 
             let els = html.querySelectorAllIncluded(`[data-${name}=${sel}]`);
-
-            // component == "form" && console.log(67, newValue);
-
-            // component == "static_form" && console.log(68, template.trim());
-
-            // console.log(87, template.trim(), {
-            //     [bind]: newValue,
-            // });
-
             let compiled = await templateCompile(template.trim(), newValue);
-
-            // console.log(98, compiled);
 
             let render = Utils.is.isString(compiled)
                 ? compiled

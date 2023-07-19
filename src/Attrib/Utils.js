@@ -46,6 +46,7 @@ function loop(attr, els, component, isStatic, cb) {
         }
         cb(el, id, target, gr, i);
     }
+    els = null;
     return true;
 }
 

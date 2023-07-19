@@ -116,6 +116,8 @@ export default class Cake {
             }
         });
 
+        router = null;
+
         if(this.opts.components && Utils.is.isArray(this.opts.components)){
             await recurse(this.opts.components,async  (component)=>{
                 // console.log(126,component.name);
@@ -204,7 +206,7 @@ export default class Cake {
 
     _registerPageCommon(){
         Utils.array.each(this.pages, ({key, value:page})=>{
-            const common = page.$common;
+            let common = page.$common;
 
             if(Utils.is.isObject(common)){
                 Utils.array.each(common, ({key:nameSpace, value:componentName})=>{
@@ -220,6 +222,8 @@ export default class Cake {
             } else {
                 page.$common = {};
             }
+
+            common = null;
         });
     }
 

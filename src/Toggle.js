@@ -153,6 +153,7 @@ function _recall(_config, attrToggle, bind, html, storage) {
                 }
             }
         }
+        targets = null;
         return bases;
     });
 }

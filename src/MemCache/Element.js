@@ -10,7 +10,7 @@ export default class {
         }
 
         if(!this.el.__storage){
-            this.el.__storage = {}
+            this.el.__storage = {};
         }
 
     }

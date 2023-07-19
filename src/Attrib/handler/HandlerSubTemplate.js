@@ -104,6 +104,8 @@ async function HandlerSubTemplate(
 
                         });
 
+                        conf = null;
+
 
 
                         if(validators){
@@ -114,7 +116,7 @@ async function HandlerSubTemplate(
 
                             
                             query = null;
-                            validators = "";
+                            validators = null;
                         }
 
 
@@ -129,6 +131,8 @@ async function HandlerSubTemplate(
                     
                     el.replaceWith(content);
                     el = null;
+                    content = null;
+                    attrs = null;
                 } else {
                     console.error("subtemplate template should be a template tag");
                 }

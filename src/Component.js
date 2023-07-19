@@ -141,7 +141,7 @@ export default class Component {
         };
         this.$cache = MemCache.object(`${this.name}/cache`);
 
-        this.dynamicEvents = [];
+        this.dynamicEvents = {};
     }
     async _setCustomData(){
         this.customData = this.options.data && Utils.is.isObject(this.options.data) || {};
@@ -236,6 +236,9 @@ export default class Component {
             if (typeof root == "string") {
                 let sel = `${root}`;
                 root = document.querySelector(sel);
+                if (!root || !root.attributes) {
+                    throw new TypeError(`the ${sel} is not an instance of Element`);
+                }
             }
 
             let payload = { emit };
@@ -806,7 +809,8 @@ export default class Component {
         this.store = {};
         this.$scopeData = {};
         //clear dynamic events;
-        this.dynamicEvents.length = 0;
+        // this.dynamicEvents.length = 0;
+        this._resetDynamicEvents();
 
         this.isConnected = false;
         this.isReady = false;
@@ -1044,25 +1048,35 @@ export default class Component {
     _setTemplateCompile(templateCompile) {
         this._templateCompile = templateCompile;
     }
+    async _resetDynamicEvents(){
+        await Object.keys(this.dynamicEvents).forEach(key=>{
+            const isDestroy = key == "destroy";
+            if(!isDestroy){
+                delete this.dynamicEvents[key];
+            }
+        });
+    }
     _setDynamicEvents(events){
         if(!events){
             return;
         }
+
         let isObject = Utils.is.isObject(events);
         if(isObject){
             Utils.array.each(events,({key, value})=>{
-                const event = `${this.name}-${key}`;
+                // const event = `${this.name}-${key}`;
                 if(Utils.is.isArray(value)){
-                    value.forEach(handler=>{
-                        this.dynamicEvents.push({event, handler});
-                    });
+                    throw new Error("events should have one handler");
                 } else if(Utils.is.isFunction(value)){
-                    this.dynamicEvents.push({event, handler:value});
+                    
+                    this.dynamicEvents[key] = {event:key, handler:value};
                 }
             });
 
 
         }
+
+       
     }
     on(event, handler) {
         this._bindHandlers({

@@ -250,6 +250,7 @@ function recurse(array, callback) {
           let item = array[index];
           const called = callback2(item, index);
           if (isUndefined(called)) {
+            array = null;
             res(cache);
           } else if (called.then) {
             called.then((result) => {
@@ -263,6 +264,7 @@ function recurse(array, callback) {
             _recurse(callback2);
           }
         } else {
+          array = null;
           res(cache);
         }
       };
@@ -405,6 +407,7 @@ function toArray(elements, reversed = false) {
         b.push(elements[a]);
       }
     }
+    elements = null;
     return b;
   } else if (!isArray(elements)) {
     return [elements];
@@ -417,6 +420,7 @@ function querySelectorIncluded(element, selector, attr, val) {
   }
   if (!attr && !val) {
     let qu = element.closest(selector);
+    query = null;
     return qu || null;
   } else if (!!attr && !!val) {
     return element.getAttribute(attr) == val ? element : null;
@@ -431,8 +435,6 @@ function querySelectorAllIncluded(element, selector, attr, val, isLog) {
     q && (q = toArray(q));
   } catch (err) {
     q = [];
-  }
-  if (isLog) {
   }
   if (selector) {
     q = toArray(element.querySelectorAll(selector));
@@ -466,6 +468,7 @@ function classNameTogglerByDataName(elements, dataName, activeClass) {
       }
     }
   }
+  elements = null;
 }
 function replaceDataSrc(root) {
   if (!root) {
@@ -672,6 +675,8 @@ function _collectContent(content) {
   }
   cf = { style: fr.children[0], others };
   fr = null;
+  styles = null;
+  others = null;
   return cf;
 }
 function _parseStyle(style) {
@@ -714,6 +719,7 @@ function _parseStyle(style) {
       }
     }
   }
+  parsed = null;
   return props;
 }
 function _parseHTML(others) {
@@ -730,6 +736,7 @@ function getContent(template, isConvert) {
   let _collectedContent = _collectContent(template.cloneNode(true).content);
   let style = _collectedContent.style;
   let others = _collectedContent.others;
+  _collectedContent = null;
   let styles = _parseStyle(style);
   let element = _parseHTML(others);
   let sOther = styles.__x__other || {};
@@ -755,6 +762,9 @@ function getContent(template, isConvert) {
     }
   }
   appendStyle(s);
+  style = null;
+  others = null;
+  sOther = null;
   element = isConvert ? toArray(element.children) : element.innerHTML;
   return element.length == 1 ? element[0] : element;
 }
@@ -765,6 +775,7 @@ function appendStyle(str) {
   let style = document.createElement("style");
   style.innerHTML = str;
   document.head.appendChild(style);
+  style = null;
 }
 
 // src/Utils/UtilsForm.js
@@ -907,7 +918,7 @@ function plot(config) {
       console.info("root is not provided!");
       return;
     }
-    const els = root.querySelectorAll(`${selector}`);
+    let els = root.querySelectorAll(`${selector}`);
     const len = els.length;
     if (!len) {
       callback(null, data);
@@ -925,6 +936,7 @@ function plot(config) {
         continue;
       }
     }
+    els = null;
   };
   query(container, "INPUT.input", function(el, value) {
     if (!el) {
@@ -991,14 +1003,17 @@ var Observer = class {
   constructor() {
     this.store = MemCache_default.object("__observer");
   }
-  async broadcast(event, payload, hookEvents) {
+  async broadcast(event, payload, component) {
+    const hookEvents = component.dynamicEvents;
     const handlers = [];
-    let subscribers = this.store.get(event);
+    let subscribers = this.store.get(`${component.name}-${event}`);
     subscribers && subscribers.forEach((subscriber) => handlers.push(subscriber));
-    if (hookEvents && Utils_default.is.isArray(hookEvents)) {
-      hookEvents.filter((item) => {
+    if (hookEvents && Utils_default.is.isObject(hookEvents)) {
+      Object.keys(hookEvents).filter((key) => {
+        const item = hookEvents[key];
         return item.event == event;
-      }).forEach((item) => {
+      }).forEach((key) => {
+        const item = hookEvents[key];
         handlers.push(item.handler);
       });
     }
@@ -1048,8 +1063,7 @@ var Observer2 = class {
     }
   }
   async broadcast(component, event, payload) {
-    const key = `${component.name}-${event}`;
-    return this.observer.broadcast(key, payload, component.dynamicEvents);
+    return this.observer.broadcast(event, payload, component);
   }
   _setComponents(components) {
     this.components = components;
@@ -1082,6 +1096,7 @@ function getElementsByDataset() {
     Utils_default.array.each(els, function(el, index2) {
       o[arg].push(el);
     });
+    els = null;
   });
   return o;
 }
@@ -1100,6 +1115,7 @@ function applyCss(element, styles) {
         if (target) {
           target.style[key2] = value2;
         }
+        target = null;
       });
     } else {
       element.style[key] = value;
@@ -1236,6 +1252,7 @@ function loop(attr, els, component, isStatic, cb) {
     }
     cb(el, id, target, gr, i);
   }
+  els = null;
   return true;
 }
 
@@ -1975,7 +1992,9 @@ var Templating_default = class {
             element = element.outerHTML;
           }
           els.push(element);
+          bindData = null;
         }
+        template = null;
         return els;
       } else if (data instanceof Object) {
         let isString2 = typeof template == "string";
@@ -1991,6 +2010,8 @@ var Templating_default = class {
         if (isConvert) {
           element = element.outerHTML;
         }
+        template = null;
+        bindData = null;
         return element;
       }
     } else {
@@ -2133,13 +2154,14 @@ async function HandlerSubTemplate(component, html, storage2) {
                 validators += `${prop}=${value2}, `;
               }
             });
+            conf = null;
             if (validators) {
               let query = Utils_default.element.querySelectorAllIncluded(content, selector);
               Utils_default.array.each(query, function(el2, index3) {
                 el2.setAttribute("data-validator", validators);
               });
               query = null;
-              validators = "";
+              validators = null;
             }
           });
           if (Object.keys(data).length) {
@@ -2147,6 +2169,8 @@ async function HandlerSubTemplate(component, html, storage2) {
           }
           el.replaceWith(content);
           el = null;
+          content = null;
+          attrs = null;
         } else {
           console.error("subtemplate template should be a template tag");
         }
@@ -2761,6 +2785,7 @@ function _recall(_config, attrToggle, bind, html, storage2) {
         }
       }
     }
+    targets = null;
     return bases;
   });
 }
@@ -3081,7 +3106,7 @@ var Component = class {
       });
     };
     this.$cache = MemCache_default.object(`${this.name}/cache`);
-    this.dynamicEvents = [];
+    this.dynamicEvents = {};
   }
   async _setCustomData() {
     this.customData = this.options.data && Utils_default.is.isObject(this.options.data) || {};
@@ -3154,6 +3179,9 @@ var Component = class {
       if (typeof root == "string") {
         let sel = `${root}`;
         root = document.querySelector(sel);
+        if (!root || !root.attributes) {
+          throw new TypeError(`the ${sel} is not an instance of Element`);
+        }
       }
       let payload = { emit };
       this.isConnected = true;
@@ -3546,7 +3574,7 @@ var Component = class {
     this.scopeHistory = {};
     this.store = {};
     this.$scopeData = {};
-    this.dynamicEvents.length = 0;
+    this._resetDynamicEvents();
     this.isConnected = false;
     this.isReady = false;
     if (this.renderQueing && this.renderQueing.length) {
@@ -3696,6 +3724,14 @@ var Component = class {
   _setTemplateCompile(templateCompile) {
     this._templateCompile = templateCompile;
   }
+  async _resetDynamicEvents() {
+    await Object.keys(this.dynamicEvents).forEach((key) => {
+      const isDestroy = key == "destroy";
+      if (!isDestroy) {
+        delete this.dynamicEvents[key];
+      }
+    });
+  }
   _setDynamicEvents(events) {
     if (!events) {
       return;
@@ -3703,13 +3739,10 @@ var Component = class {
     let isObject3 = Utils_default.is.isObject(events);
     if (isObject3) {
       Utils_default.array.each(events, ({ key, value }) => {
-        const event = `${this.name}-${key}`;
         if (Utils_default.is.isArray(value)) {
-          value.forEach((handler) => {
-            this.dynamicEvents.push({ event, handler });
-          });
+          throw new Error("events should have one handler");
         } else if (Utils_default.is.isFunction(value)) {
-          this.dynamicEvents.push({ event, handler: value });
+          this.dynamicEvents[key] = { event: key, handler: value };
         }
       });
     }
@@ -3893,7 +3926,7 @@ var RouterHistory = class {
     let searchParams = new URLSearchParams();
     for (let key in params) {
       if (Object.prototype.hasOwnProperty.call(params, key)) {
-        searchParams.append(key, params[key]);
+        searchParams.append(key, encodeURIComponent(params[key]));
       }
     }
     return `${path}?${searchParams.toString()}`;
@@ -3911,6 +3944,7 @@ var RouterHistory = class {
         break;
       }
     }
+    routes = null;
     if (path) {
       return { path, config };
     } else if (this.notFound && !parsedOnly) {
@@ -3965,6 +3999,7 @@ var RouterHistory = class {
         }
       }
     }
+    routes = null;
     if (path) {
       return { path, config, search };
     } else if (this.notFound && !parsedOnly) {
@@ -4124,6 +4159,7 @@ var RouterHistory = class {
           display: config.display,
           state: found.search
         });
+        found = null;
         return await this._renderComponent(config.components);
       }
     }
@@ -4135,9 +4171,16 @@ var RouterHistory = class {
     });
   }
   _getCurrentRoute() {
+    const state = Object.keys(this.state).reduce((accu, key) => {
+      let value = this.state[key];
+      value = decodeURIComponent(value);
+      value = value.replaceAll("(", "");
+      accu[key] = value;
+      return accu;
+    }, {});
     return {
       components: this.components,
-      state: this.state,
+      state,
       path: this.path,
       name: this.name,
       display: this.display
@@ -4323,6 +4366,7 @@ var Cake = class {
         }
       }
     });
+    router = null;
     if (this.opts.components && Utils_default.is.isArray(this.opts.components)) {
       await recurse(this.opts.components, async (component) => {
         await this._registerComponents(component);
@@ -4379,7 +4423,7 @@ var Cake = class {
   }
   _registerPageCommon() {
     Utils_default.array.each(this.pages, ({ key, value: page }) => {
-      const common = page.$common;
+      let common = page.$common;
       if (Utils_default.is.isObject(common)) {
         Utils_default.array.each(common, ({ key: nameSpace, value: componentName }) => {
           let component = this.components[componentName];
@@ -4392,6 +4436,7 @@ var Cake = class {
       } else {
         page.$common = {};
       }
+      common = null;
     });
   }
   _registerComponentCommon() {

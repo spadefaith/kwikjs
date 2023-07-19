@@ -69,7 +69,10 @@ export default class {
                         element = element.outerHTML;
                     }
                     els.push(element);
+                    bindData = null;
                 }
+
+                template = null;
                 return els;
             } else if (data instanceof Object) {
                 // console.log(template)
@@ -87,10 +90,13 @@ export default class {
                 // console.log(60, this.tag);
                 // console.log(61, bindData);
 
+                
                 let element = toElement(bindData)[0];
                 if (isConvert) {
                     element = element.outerHTML;
                 }
+                template = null;
+                bindData = null;
                 return element;
             }
         } else {

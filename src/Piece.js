@@ -49,6 +49,8 @@ function getElementsByDataset() {
         Utils.array.each(els, function (el, index) {
             o[arg].push(el);
         });
+
+        els = null;
     });
     return o;
 }
@@ -83,6 +85,8 @@ function applyCss(element, styles) {
                 if(target){
                     target.style[key] = value;
                 }
+
+                target = null;
 
             });
         } else {

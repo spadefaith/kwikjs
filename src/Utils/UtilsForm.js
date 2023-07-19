@@ -176,7 +176,7 @@ function plot(config) {
             console.info("root is not provided!");
             return;
         }
-        const els = root.querySelectorAll(`${selector}`);
+        let els = root.querySelectorAll(`${selector}`);
         const len = els.length;
         if (!len) {
             callback(null, data);
@@ -195,6 +195,8 @@ function plot(config) {
                 continue;
             }
         }
+
+        els = null;    
     };
 
     query(container, "INPUT.input", function (el, value) {

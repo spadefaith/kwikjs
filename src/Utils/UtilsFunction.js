@@ -13,6 +13,7 @@ function recurse(array, callback) {
                     const called = callback(item, index);
 
                     if(isUndefined(called)) {
+                        array = null;
                         res(cache);
                     } else if(called.then){
                         called.then((result) => {
@@ -27,6 +28,7 @@ function recurse(array, callback) {
                         _recurse(callback);
                     }
                 } else {
+                    array = null;
                     res(cache);
                 }
             };

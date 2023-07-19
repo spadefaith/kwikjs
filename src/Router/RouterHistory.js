@@ -209,7 +209,7 @@ class RouterHistory {
         let searchParams = new URLSearchParams();
         for (let key in params){
             if (Object.prototype.hasOwnProperty.call(params, key)){
-                searchParams.append(key, params[key]);
+                searchParams.append(key, encodeURIComponent(params[key]));
             }
         }
 
@@ -232,6 +232,9 @@ class RouterHistory {
                 break;
             }
         }
+
+
+        routes = null;
 
         if(path){
             return {path,config};
@@ -310,6 +313,9 @@ class RouterHistory {
             }
 
         }
+
+
+        routes = null;
 
         if(path){
             return {path,config,search};
@@ -497,6 +503,8 @@ class RouterHistory {
                     display:config.display,
                     state:found.search
                 });
+
+                found = null;
                 return await this._renderComponent(config.components);
             }
         }
@@ -508,10 +516,16 @@ class RouterHistory {
         });
     }
     _getCurrentRoute(){
-
+        const state = Object.keys(this.state).reduce((accu, key)=>{
+            let value = this.state[key];
+            value = decodeURIComponent(value);
+            value = value.replaceAll("(", "");
+            accu[key] = value;
+            return accu;
+        },{});
         return {
             components:this.components,
-            state:this.state,
+            state,
             path:this.path,
             name:this.name,
             display:this.display,
