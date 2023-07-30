@@ -32,6 +32,9 @@ dependencies:
   rimraf:
     specifier: ^4.4.1
     version: 4.4.1
+  simple-form-valid:
+    specifier: ^1.0.1
+    version: 1.0.1
   typescript:
     specifier: ^5.1.6
     version: 5.1.6
@@ -4737,6 +4740,10 @@ packages:
       call-bind: 1.0.2
       get-intrinsic: 1.2.1
       object-inspect: 1.12.3
+
+  /simple-form-valid@1.0.1:
+    resolution: {integrity: sha512-tXW1c/igAJXCS0l/KbLOnBvsN7nUY1jQHSmKoHvJm1JN1yIgaCYgkzlJSko7N8Ij0+cJF+Na1XuTLDhzMirFBQ==}
+    dev: false
 
   /simple-update-notifier@1.1.0:
     resolution: {integrity: sha512-VpsrsJSUcJEseSbMHkrsrAVSdvVS5I96Qo1QAQ4FxQ9wXFcB+pjj7FB7/us9+GcgfW4ziHtYMc1J0PLczb55mg==}
