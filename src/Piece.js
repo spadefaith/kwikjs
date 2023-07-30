@@ -195,6 +195,15 @@ export default class Piece {
     getElementsByDataset() {
         return getElementsByDataset(this.el, arguments);
     }
+    addClass(cl){
+        this.el && cl.split(" ").forEach(cl=>this.el.classList.add(cl));
+    }
+    removeClass(cl){
+        this.el && cl.split(" ").forEach(cl=>this.el.classList.remove(cl));
+    }
+    toggleClass(cl){
+        this.el && cl.split(" ").forEach(cl=>this.el.classList.toggle(cl));
+    }
 }
 
 export {
