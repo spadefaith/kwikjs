@@ -129,7 +129,7 @@ class RouterHistory {
     }
 
     async goBack(conf){
-        let state = history.state;
+        let state = conf.state;
         let name, auth, config;
         if(state && state.name){
             name = state.name;
@@ -157,7 +157,7 @@ class RouterHistory {
 
 
         if(name && auth != undefined){
-
+            this._updateProperty({path:conf.path,auth, name, display:config.display,strict:config.strict, state});
 
             let isAuth = await this._isAuth(auth);
             if(!isAuth){
@@ -511,8 +511,8 @@ class RouterHistory {
     }
     onPopState(){
         window.addEventListener("popstate", (event) => {
-            let {pathname, search} = this._parseUrl();
-            this.goBack({path:pathname});
+            let {pathname, search} = this._parseUrl(`${location.pathname}${location.search}`);
+            this.goBack({path:pathname, state:search});
         });
     }
     _getCurrentRoute(){
@@ -523,18 +523,21 @@ class RouterHistory {
             accu[key] = value;
             return accu;
         },{});
-        return {
+
+
+        const d = {
             components:this.components,
-            state,
             path:this.path,
             name:this.name,
             display:this.display,
+            state,
         };
+        return d;
     }
     _listen() {
-        let name = "pathChanged";
+        let eventName = "pathChanged";
 
-        document.addEventListener(name, (e) => {
+        document.addEventListener(eventName, (e) => {
             let detail = e.detail;
 
             // console.log(510,detail);
