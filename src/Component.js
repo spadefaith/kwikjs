@@ -13,7 +13,8 @@ import Storage from "./Storage";
 
 import Toggle from "./Toggle";
 
-import Validator from "./Form/Validator";
+// import Validator from "./Form/Validator";
+import Validator from "simple-form-valid";
 
 const ElementStorage = MemCache.element;
 
@@ -64,9 +65,8 @@ export default class Component {
         this.name = name;
 
         this.htmlTemplateSelector = template;
-
+        this.fetchTemplate = Promise.resolve(true);
         this._parseOptions({ template, ...options });
-
 
         this.$templating = new Templating();
 
@@ -201,7 +201,7 @@ export default class Component {
 
     async render(options = {}) {
         try {
-
+            await this.fetchTemplate;
 
             if(this.template.isStatic){
                 return;
@@ -268,7 +268,7 @@ export default class Component {
 
             payload.element = this.html;
 
-            this.fire.beforeConnected &&
+            await this.fire.beforeConnected &&
                 this.fire.beforeConnected(payload, true);
 
 
@@ -288,7 +288,7 @@ export default class Component {
     
 
             /**append the html if template type in the root */
-            (this.template.isTemplate || this.template.isString )&& await this.html.appendTo(root, cleaned);
+            (this.template.isTemplate || this.template.isString|| this.template.isUrl )&& await this.html.appendTo(root, cleaned);
             
             /**replace data-router with hash */
             await this._replaceRouter();
@@ -643,10 +643,12 @@ export default class Component {
         this.template = {
             isStatic: false,
             isTemplate: false,
+            isUrl: false,
             isString: false,
             has:false,
             isID:false,
         };
+        const isUrl = Utils.is.isValidUrl(template);
         if (template) {
             this.template.has = true;
 
@@ -663,6 +665,21 @@ export default class Component {
                 } else {
                     throw new Error(`${template} is not found in the DOM`);
                 }
+            } else if (isUrl){
+                this.fetchTemplate = fetch(isUrl.href).then(res=>res.text()).then(res=>{
+                    this.template.element = toElement(res, true);
+
+                    this.template.isID = false;
+                    if(this.template.element){
+                        this.template.isUrl = true;
+    
+                    } else {
+                        throw new Error(`${template} is not found in the DOM`);
+                    }
+                }).catch(err=>{
+                    console.log(`error fetching template of component ${this.name}, error - ${err.message}`);
+                });
+
             } else if(Utils.is.isString(template)){
                 this.template.element = toElement(template, true);
 
@@ -695,6 +712,8 @@ export default class Component {
             element = await createElement(query);
         } else if(this.template.isStatic) {
             element = query;
+        } else if (this.template.isUrl){
+            element = await createElement(query);
         } else if (this.template.isString){
             element = await createElement(query);
         }
