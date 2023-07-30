@@ -168,7 +168,22 @@ function isURL(str){
     }
 }
 
+function isValidUrl(str){
+    let urlClass = null;
+    try {
+        urlClass = new URL(str);
+    } catch(err){
+        try {
+            let url = `http://localhost${str}`;
+            urlClass = new URL(url);
+        } catch(err){//
+        }
+    }
+    return urlClass;
+}
+
 export {
+    isValidUrl,
     isURL,
     isUndefined,
     isNull,
