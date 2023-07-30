@@ -45,6 +45,7 @@ function insertAfter(template, elsString) {
     }
 
     recur();
+    template.remove();
 }
 
 function handleError(err) {
