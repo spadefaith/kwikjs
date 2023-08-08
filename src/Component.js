@@ -266,7 +266,11 @@ export default class Component {
 
             this.customCss && this.html.css(this.customCss);
 
+            /**set dynamic events */
+            this._setDynamicEvents(options.events);
+
             payload.element = this.html;
+            payload.events = this.dynamicEvents;
 
             await this.fire.beforeConnected &&
                 this.fire.beforeConnected(payload, true);
@@ -305,8 +309,6 @@ export default class Component {
             /**activate validator if form type */
             this._activateValidator();
 
-            /**set dynamic events */
-            this._setDynamicEvents(options.events);
 
             /**call isConnected hook */
             this.fire.isConnected &&
@@ -318,7 +320,7 @@ export default class Component {
 
 
             /**reset if multiple type */
-            multiple && (await this._hardReset());
+            multiple && (await this._hardResetMultiple());
 
 
             /**run auto scope */
@@ -731,6 +733,13 @@ export default class Component {
 
         return true;
     }
+    async _hardResetMultiple() {
+
+        await this._eventStorage.destroy();
+        this._reUseTemplate();
+
+        return true;
+    }
     async _cloneTemplate(element){
         this.html = new Piece(element);
         this.original = this.html.cloneNode();
@@ -829,7 +838,7 @@ export default class Component {
         this.$scopeData = {};
         //clear dynamic events;
         // this.dynamicEvents.length = 0;
-        this._resetDynamicEvents();
+        this._resetDynamicEvents(options.resetHooks);
 
         this.isConnected = false;
         this.isReady = false;
@@ -1067,7 +1076,12 @@ export default class Component {
     _setTemplateCompile(templateCompile) {
         this._templateCompile = templateCompile;
     }
-    async _resetDynamicEvents(){
+    async _resetDynamicEvents(resetHooks){
+        const isReset = resetHooks == undefined ? true: resetHooks;
+
+        if(!isReset){
+            return true;
+        }
         await Object.keys(this.dynamicEvents).forEach(key=>{
             const isDestroy = key == "destroy";
             if(!isDestroy){
@@ -1087,7 +1101,6 @@ export default class Component {
                 if(Utils.is.isArray(value)){
                     throw new Error("events should have one handler");
                 } else if(Utils.is.isFunction(value)){
-                    
                     this.dynamicEvents[key] = {event:key, handler:value};
                 }
             });
@@ -1095,7 +1108,6 @@ export default class Component {
 
         }
 
-       
     }
     on(event, handler) {
         this._bindHandlers({

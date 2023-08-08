@@ -112,6 +112,7 @@ __export(UtilsIs_exports, {
   isTruthy: () => isTruthy,
   isURL: () => isURL,
   isUndefined: () => isUndefined,
+  isValidUrl: () => isValidUrl,
   typeOf: () => typeOf
 });
 function browser() {
@@ -236,6 +237,19 @@ function isURL(str) {
   } catch (err) {
     return false;
   }
+}
+function isValidUrl(str) {
+  let urlClass = null;
+  try {
+    urlClass = new URL(str);
+  } catch (err) {
+    try {
+      let url = `http://localhost${str}`;
+      urlClass = new URL(url);
+    } catch (err2) {
+    }
+  }
+  return urlClass;
 }
 
 // src/Utils/UtilsFunction.js
@@ -1207,6 +1221,15 @@ var Piece = class {
   getElementsByDataset() {
     return getElementsByDataset(this.el, arguments);
   }
+  addClass(cl) {
+    this.el && cl.split(" ").forEach((cl2) => this.el.classList.add(cl2));
+  }
+  removeClass(cl) {
+    this.el && cl.split(" ").forEach((cl2) => this.el.classList.remove(cl2));
+  }
+  toggleClass(cl) {
+    this.el && cl.split(" ").forEach((cl2) => this.el.classList.toggle(cl2));
+  }
 };
 
 // src/Attrib/Utils.js
@@ -2045,6 +2068,7 @@ function insertAfter(template, elsString) {
     recur();
   }
   recur();
+  template.remove();
 }
 function handleError(err) {
   throw err;
@@ -2849,9 +2873,9 @@ var Toggle_default = class {
   }
 };
 
-// src/Form/Validator.js
+// node_modules/.pnpm/simple-form-valid@1.0.1/node_modules/simple-form-valid/index.js
 var inputEvent = function(callbacks) {
-  return function inputEvent2(e) {
+  return function(e) {
     if (e) {
       let target = e.target;
       let value = e.target.value;
@@ -2869,8 +2893,29 @@ var inputEvent = function(callbacks) {
     }
   };
 };
+var Templating = class {
+  replaceString(obj, string) {
+    let lefttag = "{{".replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+    let righttag = "}}".replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+    for (let key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        let pattern = new RegExp(`${lefttag}${key}${righttag}`, "g");
+        pattern && (string = string.replace(pattern, `${obj[key]}`));
+      }
+    }
+    return string;
+  }
+};
+var Utils = {
+  element: {
+    querySelectorAllIncluded(form, controlSelector) {
+      return [...form.querySelectorAll(controlSelector)];
+    }
+  }
+};
 var validate = function(target, value, templating, callbacks, successCallback, errorCallback, showErrorCallback) {
   let attr = target.dataset.validator;
+  let isRequired = false;
   if (!attr) {
     return;
   }
@@ -2880,6 +2925,14 @@ var validate = function(target, value, templating, callbacks, successCallback, e
       value2 = value2.split(",");
     } else {
       value2 = value2 ? value2.trim() : true;
+      if (value2 == "true") {
+        value2 = true;
+      } else if (value2 == "false") {
+        value2 = false;
+      }
+    }
+    if (key == "required" && value2 == true) {
+      isRequired = true;
     }
     accu.push({ key: key.trim(), value: value2 });
     return accu;
@@ -2900,23 +2953,31 @@ var validate = function(target, value, templating, callbacks, successCallback, e
     callback.validatorName = key;
     return callback;
   });
+  if (!isRequired && target.value == "") {
+    _callbacks = [];
+  }
   const asy = async function(callbacks2) {
-    const validation = await Promise.all(callbacks2.map(async (callback) => {
-      let _attrValues = attrValues[callback.validatorName];
-      let message = callback.errorMessage;
-      if (_attrValues && message.includes("{") && message.includes("}")) {
-        let data = _attrValues.split(",").reduce((accu, iter, index) => {
-          accu[`${index}`] = iter;
-          return accu;
-        }, {});
-        message = templating.replaceString(data, message);
-      }
-      let test = await callback({
-        target,
-        value
-      }, _attrValues);
-      return { test, message };
-    }));
+    const validation = await Promise.all(
+      callbacks2.map(async (callback) => {
+        let _attrValues = attrValues[callback.validatorName];
+        let message = callback.errorMessage;
+        if (_attrValues && message.includes("{") && message.includes("}")) {
+          let data = _attrValues.split(",").reduce((accu, iter, index) => {
+            accu[`${index}`] = iter;
+            return accu;
+          }, {});
+          message = templating.replaceString(data, message);
+        }
+        let test = await callback(
+          {
+            target,
+            value
+          },
+          _attrValues
+        );
+        return { test, message };
+      })
+    );
     if (validation.some((val) => !val.test)) {
       errorCallback(target);
     } else {
@@ -2927,7 +2988,7 @@ var validate = function(target, value, templating, callbacks, successCallback, e
   };
   return asy(_callbacks);
 };
-var Validator = class {
+var FormValidator = class {
   constructor(form, validation, opts) {
     this.parentClass = opts.parentClass;
     this.errorTextParent = opts.errorTextParent;
@@ -2937,25 +2998,15 @@ var Validator = class {
     this.successClass = opts.successClass;
     this.validation = validation;
     this.form = form;
-    this.templating = new Templating_default();
+    this.templating = new Templating();
     this._addEvent(this.form);
   }
   _addEvent(target) {
-    this.handlerFn = inputEvent(this.validation).bind(this);
-    target.addEventListener("input", this.handlerFn);
-  }
-  dispose() {
-    this.form.removeEventListener("input", this.handlerFn);
-  }
-  reset() {
-    this.dispose();
-    this._addEvent(this.form);
+    target.addEventListener("input", inputEvent(this.validation).bind(this));
   }
   isLoading() {
-    console.log("validating");
   }
   doneLoading() {
-    console.log("validated");
   }
   addSuccessClass(target) {
     if (target.classList.contains(this.errorClass)) {
@@ -2987,7 +3038,9 @@ var Validator = class {
       throw new Error("parent is not found");
     }
     const errorTagIdentity = this.errorTextClass;
-    const connectedErrorTextParent = parent.querySelector(`.${errorTagIdentity}`);
+    const connectedErrorTextParent = parent.querySelector(
+      `.${errorTagIdentity}`
+    );
     if (connectedErrorTextParent) {
       connectedErrorTextParent.remove();
     }
@@ -3002,19 +3055,24 @@ var Validator = class {
     if (!this.form) {
       throw new Error("form is not found");
     }
-    let controls = Utils_default.element.querySelectorAllIncluded(this.form, controlSelector);
-    let val = await Promise.all(controls.map((control) => {
-      let value = control.value;
-      return validate(
-        control,
-        value,
-        this.templating,
-        this.validation,
-        this.addSuccessClass.bind(this),
-        this.addErrorClass.bind(this),
-        this.showError.bind(this)
-      );
-    }));
+    let controls = Utils.element.querySelectorAllIncluded(
+      this.form,
+      controlSelector
+    );
+    let val = await Promise.all(
+      controls.map((control) => {
+        let value = control.value;
+        return validate(
+          control,
+          value,
+          this.templating,
+          this.validation,
+          this.addSuccessClass.bind(this),
+          this.addErrorClass.bind(this),
+          this.showError.bind(this)
+        );
+      })
+    );
     return val.map((item) => {
       if (item) {
         return item.every((item2) => {
@@ -3055,6 +3113,7 @@ var Component = class {
   constructor(name, template, options) {
     this.name = name;
     this.htmlTemplateSelector = template;
+    this.fetchTemplate = Promise.resolve(true);
     this._parseOptions({ template, ...options });
     this.$templating = new Templating_default();
     this.await = {};
@@ -3153,6 +3212,7 @@ var Component = class {
   }
   async render(options = {}) {
     try {
+      await this.fetchTemplate;
       if (this.template.isStatic) {
         return;
       }
@@ -3194,22 +3254,23 @@ var Component = class {
       await this.await.destroy;
       await this._getDataOnRender();
       this.customCss && this.html.css(this.customCss);
+      this._setDynamicEvents(options.events);
       payload.element = this.html;
-      this.fire.beforeConnected && this.fire.beforeConnected(payload, true);
+      payload.events = this.dynamicEvents;
+      await this.fire.beforeConnected && this.fire.beforeConnected(payload, true);
       this.onInit && await this.onInit();
       let el = this.$templating.createElement(this.customData, this.html.getElement());
       this._recacheFromTemplating(el);
       this.html.replaceDataSrc();
-      (this.template.isTemplate || this.template.isString) && await this.html.appendTo(root, cleaned);
+      (this.template.isTemplate || this.template.isString || this.template.isUrl) && await this.html.appendTo(root, cleaned);
       await this._replaceRouter();
       await this._findRef();
       await this._findContainer();
       this._setToggler();
       this._activateValidator();
-      this._setDynamicEvents(options.events);
       this.fire.isConnected && await this.fire.isConnected(payload, true);
       await this._addEvent();
-      multiple && await this._hardReset();
+      multiple && await this._hardResetMultiple();
       await this._autoScope();
     } catch (err) {
       console.log(281, this.name, err);
@@ -3441,10 +3502,12 @@ var Component = class {
     this.template = {
       isStatic: false,
       isTemplate: false,
+      isUrl: false,
       isString: false,
       has: false,
       isID: false
     };
+    const isUrl = Utils_default.is.isValidUrl(template);
     if (template) {
       this.template.has = true;
       if (template.substring(0, 1) == "#") {
@@ -3458,6 +3521,18 @@ var Component = class {
         } else {
           throw new Error(`${template} is not found in the DOM`);
         }
+      } else if (isUrl) {
+        this.fetchTemplate = fetch(isUrl.href).then((res) => res.text()).then((res) => {
+          this.template.element = toElement2(res, true);
+          this.template.isID = false;
+          if (this.template.element) {
+            this.template.isUrl = true;
+          } else {
+            throw new Error(`${template} is not found in the DOM`);
+          }
+        }).catch((err) => {
+          console.log(`error fetching template of component ${this.name}, error - ${err.message}`);
+        });
       } else if (Utils_default.is.isString(template)) {
         this.template.element = toElement2(template, true);
         this.template.isID = false;
@@ -3483,6 +3558,8 @@ var Component = class {
       element = await createElement(query);
     } else if (this.template.isStatic) {
       element = query;
+    } else if (this.template.isUrl) {
+      element = await createElement(query);
     } else if (this.template.isString) {
       element = await createElement(query);
     }
@@ -3494,6 +3571,11 @@ var Component = class {
   }
   async _hardReset() {
     this.html && await this.html.remove(this.name);
+    await this._eventStorage.destroy();
+    this._reUseTemplate();
+    return true;
+  }
+  async _hardResetMultiple() {
     await this._eventStorage.destroy();
     this._reUseTemplate();
     return true;
@@ -3574,7 +3656,7 @@ var Component = class {
     this.scopeHistory = {};
     this.store = {};
     this.$scopeData = {};
-    this._resetDynamicEvents();
+    this._resetDynamicEvents(options.resetHooks);
     this.isConnected = false;
     this.isReady = false;
     if (this.renderQueing && this.renderQueing.length) {
@@ -3674,7 +3756,7 @@ var Component = class {
   }
   _activateValidator() {
     if (this.role == "form") {
-      this.$validator = Validator;
+      this.$validator = FormValidator;
     }
   }
   _setParent(groupName) {
@@ -3724,7 +3806,11 @@ var Component = class {
   _setTemplateCompile(templateCompile) {
     this._templateCompile = templateCompile;
   }
-  async _resetDynamicEvents() {
+  async _resetDynamicEvents(resetHooks) {
+    const isReset = resetHooks == void 0 ? true : resetHooks;
+    if (!isReset) {
+      return true;
+    }
     await Object.keys(this.dynamicEvents).forEach((key) => {
       const isDestroy = key == "destroy";
       if (!isDestroy) {
@@ -3860,7 +3946,7 @@ var RouterHistory = class {
     }
   }
   async goBack(conf) {
-    let state = history.state;
+    let state = conf.state;
     let name, auth, config;
     if (state && state.name) {
       name = state.name;
@@ -3885,6 +3971,7 @@ var RouterHistory = class {
       }
     }
     if (name && auth != void 0) {
+      this._updateProperty({ path: conf.path, auth, name, display: config.display, strict: config.strict, state });
       let isAuth = await this._isAuth(auth);
       if (!isAuth) {
         console.error("unauthorized");
@@ -4166,8 +4253,8 @@ var RouterHistory = class {
   }
   onPopState() {
     window.addEventListener("popstate", (event) => {
-      let { pathname, search } = this._parseUrl();
-      this.goBack({ path: pathname });
+      let { pathname, search } = this._parseUrl(`${location.pathname}${location.search}`);
+      this.goBack({ path: pathname, state: search });
     });
   }
   _getCurrentRoute() {
@@ -4178,17 +4265,18 @@ var RouterHistory = class {
       accu[key] = value;
       return accu;
     }, {});
-    return {
+    const d = {
       components: this.components,
-      state,
       path: this.path,
       name: this.name,
-      display: this.display
+      display: this.display,
+      state
     };
+    return d;
   }
   _listen() {
-    let name = "pathChanged";
-    document.addEventListener(name, (e) => {
+    let eventName = "pathChanged";
+    document.addEventListener(eventName, (e) => {
       let detail = e.detail;
       this.goTo(detail.name);
     });
