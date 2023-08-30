@@ -243,11 +243,6 @@ function isValidUrl(str) {
   try {
     urlClass = new URL(str);
   } catch (err) {
-    try {
-      let url = `http://localhost${str}`;
-      urlClass = new URL(url);
-    } catch (err2) {
-    }
   }
   return urlClass;
 }
@@ -1144,7 +1139,8 @@ async function appendTo(root, element, cleaned) {
   root.appendChild(element);
 }
 var Piece = class {
-  constructor(el) {
+  constructor(el, componentName) {
+    this.componentName = componentName;
     this.el = el && (el.el || el);
   }
   toArray() {
@@ -1169,7 +1165,7 @@ var Piece = class {
     Utils_default.element.replaceDataSrc(this.el);
   }
   cloneNode() {
-    return new Piece(this.el.cloneNode(true));
+    return new Piece(this.el.cloneNode(true), this.componentName);
   }
   dataset(data) {
     return this.el.dataset[data] || null;
@@ -3317,7 +3313,7 @@ var Component = class {
     this.fire.beforeConnected && await this.fire.beforeConnected({}, true);
     let el = this.html.getElement();
     el = this.$templating.createElement(this.customData, el);
-    this.html = new Piece(el);
+    this.html = new Piece(el, this.name);
     this.html.replaceDataSrc();
     await this._replaceRouter();
     await this._findRef();
@@ -3577,11 +3573,10 @@ var Component = class {
   }
   async _hardResetMultiple() {
     await this._eventStorage.destroy();
-    this._reUseTemplate();
     return true;
   }
   async _cloneTemplate(element) {
-    this.html = new Piece(element);
+    this.html = new Piece(element, this.name);
     this.original = this.html.cloneNode();
   }
   async _cacheTemplate(html) {
@@ -3593,21 +3588,21 @@ var Component = class {
   }
   async _recacheFromSubTemplate(html) {
     if (!this.template.recacheFromSubTemplate) {
-      this.html = new Piece(html);
+      this.html = new Piece(html, this.name);
       this.original = await html.cloneNode();
       this.template.recacheFromSubTemplate = true;
     }
   }
   async _recacheFromTemplating(html) {
     if (this.html) {
-      this.html = new Piece(html);
+      this.html = new Piece(html, this.name);
       this.template.recacheFromTemplating = true;
     }
   }
   async _reUseTemplate() {
     if (this.original) {
       const cloned = await this.original.cloneNode();
-      this.html = new Piece(cloned);
+      this.html = new Piece(cloned, this.name);
     }
   }
   async _parseHTML(html, isStatic, isReInject) {

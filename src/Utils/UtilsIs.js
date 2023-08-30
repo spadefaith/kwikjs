@@ -173,11 +173,7 @@ function isValidUrl(str){
     try {
         urlClass = new URL(str);
     } catch(err){
-        try {
-            let url = `http://localhost${str}`;
-            urlClass = new URL(url);
-        } catch(err){//
-        }
+        //
     }
     return urlClass;
 }

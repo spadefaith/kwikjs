@@ -383,7 +383,7 @@ export default class Component {
 
         let el = this.html.getElement();
         el = this.$templating.createElement(this.customData, el);
-        this.html = new Piece(el);
+        this.html = new Piece(el, this.name);
         this.html.replaceDataSrc();
 
 
@@ -650,6 +650,7 @@ export default class Component {
             has:false,
             isID:false,
         };
+
         const isUrl = Utils.is.isValidUrl(template);
         if (template) {
             this.template.has = true;
@@ -736,12 +737,12 @@ export default class Component {
     async _hardResetMultiple() {
 
         await this._eventStorage.destroy();
-        this._reUseTemplate();
+        // this._reUseTemplate();
 
         return true;
     }
     async _cloneTemplate(element){
-        this.html = new Piece(element);
+        this.html = new Piece(element, this.name);
         this.original = this.html.cloneNode();
     }
     async _cacheTemplate(html){
@@ -761,7 +762,7 @@ export default class Component {
     async _recacheFromSubTemplate(html){
         if(!this.template.recacheFromSubTemplate){
             
-            this.html = new Piece(html);
+            this.html = new Piece(html, this.name);
             this.original = await html.cloneNode();
 
             this.template.recacheFromSubTemplate = true;
@@ -770,7 +771,7 @@ export default class Component {
 
     async _recacheFromTemplating(html){
         if(this.html){
-            this.html = new Piece(html);
+            this.html = new Piece(html, this.name);
             this.template.recacheFromTemplating = true;
         }
     }
@@ -778,7 +779,7 @@ export default class Component {
     async _reUseTemplate(){
         if(this.original){
             const cloned = await this.original.cloneNode();
-            this.html = new Piece(cloned);
+            this.html = new Piece(cloned, this.name);
         }
     }
 

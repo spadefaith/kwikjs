@@ -114,10 +114,14 @@ function querySelectorAllIncluded(element, selector, attr, val) {
 }
 
 export default class Piece {
-    constructor(el) {
-        
+    constructor(el, componentName) {
+        this.componentName = componentName;
         this.el = el && (el.el || el);
-        // console.log(104, this.el);
+        // if(componentName == "spinner"){
+        //     console.log(104, this.componentName,this.el);
+        //     console.trace();
+        // }
+        
     }
     toArray() {
         return Utils.element.toArray(this._el);
@@ -141,7 +145,7 @@ export default class Piece {
         Utils.element.replaceDataSrc(this.el);
     }
     cloneNode() {
-        return new Piece(this.el.cloneNode(true));
+        return new Piece(this.el.cloneNode(true), this.componentName);
     }
     dataset(data) {
         return this.el.dataset[data] || null;
