@@ -121,7 +121,7 @@ export default class Cake {
         if(this.opts.components && Utils.is.isArray(this.opts.components)){
             await recurse(this.opts.components,async  (component)=>{
                 // console.log(126,component.name);
-               await this._registerComponents(component);
+                await this._registerComponents(component);
             });
         }
     }
