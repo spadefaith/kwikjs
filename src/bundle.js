@@ -3236,7 +3236,9 @@ var Component = class {
         let sel = `${root}`;
         root = document.querySelector(sel);
         if (!root || !root.attributes) {
-          throw new TypeError(`the ${sel} is not an instance of Element`);
+          throw new TypeError(
+            `the ${sel} is not an instance of Element`
+          );
         }
       }
       let payload = { emit };
@@ -3255,7 +3257,10 @@ var Component = class {
       payload.events = this.dynamicEvents;
       await this.fire.beforeConnected && this.fire.beforeConnected(payload, true);
       this.onInit && await this.onInit();
-      let el = this.$templating.createElement(this.customData, this.html.getElement());
+      let el = this.$templating.createElement(
+        this.customData,
+        this.html.getElement()
+      );
       this._recacheFromTemplating(el);
       this.html.replaceDataSrc();
       (this.template.isTemplate || this.template.isString || this.template.isUrl) && await this.html.appendTo(root, cleaned);
@@ -3277,7 +3282,11 @@ var Component = class {
       let keys = Object.keys(this.$scopeData);
       await Utils_default.function.recurse(keys, (key, index) => {
         let val = this.$scopeData[key];
-        return this.$scope(key, { [key]: val });
+        if (Utils_default.is.isObject(val)) {
+          return this.$scope(key, val);
+        } else {
+          return this.$scope(key, { [key]: val });
+        }
       });
     }
   }
@@ -3285,9 +3294,7 @@ var Component = class {
     if (this.options.onRender && this.options.onRender.constructor && ["Function", "AsyncFunction"].includes(
       this.options.onRender.constructor.name
     )) {
-      this.onRenderConfig = await this.options.onRender.bind(this)(
-        this
-      );
+      this.onRenderConfig = await this.options.onRender.bind(this)(this);
       let data = this.onRenderConfig.data;
       let $scope = this.onRenderConfig.$scope;
       let css = this.onRenderConfig.css;
@@ -3328,6 +3335,7 @@ var Component = class {
   _updateRoute() {
     if (!this.$router) {
       console.log(this);
+      return;
     }
     let route = this.$router._getCurrentRoute();
     if (!route) {
@@ -3524,10 +3532,14 @@ var Component = class {
           if (this.template.element) {
             this.template.isUrl = true;
           } else {
-            throw new Error(`${template} is not found in the DOM`);
+            throw new Error(
+              `${template} is not found in the DOM`
+            );
           }
         }).catch((err) => {
-          console.log(`error fetching template of component ${this.name}, error - ${err.message}`);
+          console.log(
+            `error fetching template of component ${this.name}, error - ${err.message}`
+          );
         });
       } else if (Utils_default.is.isString(template)) {
         this.template.element = toElement2(template, true);
@@ -3762,7 +3774,11 @@ var Component = class {
     this.attribStorageMultipleEvent = MemCache_default.object(
       `${this.groupName}/${this.name}/MultipleEvent`
     );
-    this.$attrib = new Attrib(this.attribStorage, this.attribStorageMultipleEvent, this._templateCompile);
+    this.$attrib = new Attrib(
+      this.attribStorage,
+      this.attribStorageMultipleEvent,
+      this._templateCompile
+    );
   }
   _setObserver(observer) {
     this.$observer = observer;
@@ -3865,7 +3881,11 @@ var Component = class {
         cloned[key] = opts[key] ? cloned[key] = opts[key] : cloned[key] = this.options[key];
       }
     }
-    return new Component(name, template || this.htmlTemplateSelector, cloned);
+    return new Component(
+      name,
+      template || this.htmlTemplateSelector,
+      cloned
+    );
   }
   _setPage(page) {
     this.$parent = page;
@@ -3907,7 +3927,10 @@ var RouterHistory = class {
       }
     } else if (!isUrl) {
       let state = {};
-      let { path, config } = await this._getConfigByName(name);
+      let { path, config } = await this._redirectNotFound(
+        await this._getConfigByName(name),
+        opts.lastResort
+      ) || {};
       if (path) {
         let parsed = this._parseUrl(path);
         let search = parsed.search;
@@ -3928,11 +3951,26 @@ var RouterHistory = class {
           return;
         }
         if (opts.replace) {
-          history.replaceState({ auth, path, name: name2, display, strict, state }, opts.title || "", newPath);
+          history.replaceState(
+            { auth, path, name: name2, display, strict, state },
+            opts.title || "",
+            newPath
+          );
         } else {
-          history.pushState({ auth, path, name: name2, display, strict, state }, opts.title || "", newPath);
+          history.pushState(
+            { auth, path, name: name2, display, strict, state },
+            opts.title || "",
+            newPath
+          );
         }
-        this._updateProperty({ path, auth, name: name2, display, strict, state });
+        this._updateProperty({
+          path,
+          auth,
+          name: name2,
+          display,
+          strict,
+          state
+        });
         await this._destroyComponent(this.components);
         await this._renderComponent(components);
       } else {
@@ -3946,19 +3984,25 @@ var RouterHistory = class {
     if (state && state.name) {
       name = state.name;
       auth = state.auth;
-      let found = await this._getConfigByName(name);
+      let found = await this._redirectNotFound(
+        await this._getConfigByName(name)
+      );
       if (found) {
         config = found.config;
       }
     } else if (conf && conf.name) {
-      let found = await this._getConfigByName(conf.name);
+      let found = await this._redirectNotFound(
+        await this._getConfigByName(conf.name)
+      );
       if (found) {
         config = found.config;
         name = config.name;
         auth = config.auth;
       }
     } else if (conf && conf.path) {
-      let found = await this._getConfigByPath(conf.path);
+      let found = await this._redirectNotFound(
+        await this._getConfigByPath(conf.path)
+      );
       if (found) {
         config = found.config;
         name = config.name;
@@ -3966,7 +4010,14 @@ var RouterHistory = class {
       }
     }
     if (name && auth != void 0) {
-      this._updateProperty({ path: conf.path, auth, name, display: config.display, strict: config.strict, state });
+      this._updateProperty({
+        path: conf.path,
+        auth,
+        name,
+        display: config.display,
+        strict: config.strict,
+        state
+      });
       let isAuth = await this._isAuth(auth);
       if (!isAuth) {
         console.error("unauthorized");
@@ -4013,7 +4064,7 @@ var RouterHistory = class {
     }
     return `${path}?${searchParams.toString()}`;
   }
-  async _getConfigByName(name, parsedOnly = false) {
+  async _getConfigByName(name) {
     let config = {};
     let path = null;
     let routes = Object.keys(this.config.routes);
@@ -4029,19 +4080,10 @@ var RouterHistory = class {
     routes = null;
     if (path) {
       return { path, config };
-    } else if (this.notFound && !parsedOnly) {
-      let url = await this.notFound();
-      try {
-        let urlClass = new URL(url);
-        window.location = url;
-      } catch (err) {
-        await this.goTo(url);
-      }
-      return null;
     }
     return null;
   }
-  async _getConfigByPath(_path, parsedOnly = false) {
+  async _getConfigByPath(_path) {
     let { search, pathname, searchParams } = this._parseUrl(_path);
     let config = {};
     let path = null;
@@ -4060,7 +4102,10 @@ var RouterHistory = class {
           if (pathname == parseRoute.pathname) {
             let hasAtleastContainsParamsOfRoute = false;
             for (let key in parseRoute.search) {
-              if (Object.prototype.hasOwnProperty.call(parseRoute.search, key)) {
+              if (Object.prototype.hasOwnProperty.call(
+                parseRoute.search,
+                key
+              )) {
                 if (search[key] == parseRoute.search[key]) {
                   hasAtleastContainsParamsOfRoute = true;
                 }
@@ -4084,23 +4129,43 @@ var RouterHistory = class {
     routes = null;
     if (path) {
       return { path, config, search };
-    } else if (this.notFound && !parsedOnly) {
-      let url = await this.notFound();
-      try {
-        let urlClass = new URL(url);
-        window.location = url;
-      } catch (err) {
-        await this.goTo(url);
-      }
+    }
+    return null;
+  }
+  async _redirectNotFound(getPath, lastResort) {
+    if (getPath) {
+      return getPath;
+    }
+    if (lastResort) {
       return null;
+    }
+    let { route, url } = await this.notFound();
+    if (!(route || url)) {
+      console.error("notFound option is not set in router");
+      return null;
+    }
+    if (url) {
+      new URL(url);
+      setTimeout(() => {
+        window.location = url;
+      }, 100);
+      return;
+    }
+    if (route) {
+      return await this.goTo(route, {
+        lastResort: true
+      });
     }
     return null;
   }
   _parseOptions() {
     let options = this.config.options || {};
-    this.notFound = options.notFound;
+    this.notFound = options.notFound || function() {
+      return {};
+    };
     this.unAuthorized = options.unAuthorized;
     this.verify = options.verify;
+    this.root = options.root || "/";
   }
   _parseRoutes() {
     let paths = Object.keys(this.config.routes);
@@ -4123,7 +4188,9 @@ var RouterHistory = class {
           if (request.status) {
             this.user = request.data;
           } else {
-            throw new Error(request.message || "error verifying auth");
+            throw new Error(
+              request.message || "error verifying auth"
+            );
           }
         } else {
           throw new Error("verify auth callback is required");
@@ -4135,10 +4202,14 @@ var RouterHistory = class {
           if (user) {
             return true;
           } else {
-            throw new Error("router has no user, the route requires a user.");
+            throw new Error(
+              "router has no user, the route requires a user."
+            );
           }
         } else {
-          throw new Error("verify callback is required if the route is auth");
+          throw new Error(
+            "verify callback is required if the route is auth"
+          );
         }
       } else if (auth == false) {
         return true;
@@ -4149,10 +4220,14 @@ var RouterHistory = class {
           if (auth.includes(role)) {
             return true;
           } else {
-            throw new Error(`role ${role} is not found in allowed roles`);
+            throw new Error(
+              `role ${role} is not found in allowed roles`
+            );
           }
         } else {
-          throw new Error("router has no user, the route requires a user.");
+          throw new Error(
+            "router has no user, the route requires a user."
+          );
         }
       }
     } catch (err) {
@@ -4177,14 +4252,17 @@ var RouterHistory = class {
   }
   async _renderComponent(components) {
     try {
-      await Utils_default.function.recurse(components || [], async (component, index) => {
-        if (component) {
-          await component.render.bind(component)();
-          if (component.await.isConnected) {
-            await component.await.isConnected;
+      await Utils_default.function.recurse(
+        components || [],
+        async (component, index) => {
+          if (component) {
+            await component.render.bind(component)();
+            if (component.await.isConnected) {
+              await component.await.isConnected;
+            }
           }
         }
-      });
+      );
       await this._updateProperty({ components });
       return true;
     } catch (err) {
@@ -4194,16 +4272,19 @@ var RouterHistory = class {
   }
   async _destroyComponent(components) {
     try {
-      return await Utils_default.function.recurse(components || [], async (component, index) => {
-        if (component) {
-          if (component?.fire?.destroy) {
-            await component.fire.destroy();
-            await component.await.destroy;
-          } else {
-            return component.reset();
+      return await Utils_default.function.recurse(
+        components || [],
+        async (component, index) => {
+          if (component) {
+            if (component?.fire?.destroy) {
+              await component.fire.destroy();
+              await component.await.destroy;
+            } else {
+              return component.reset();
+            }
           }
         }
-      });
+      );
     } catch (err) {
       console.log(err);
       return false;
@@ -4211,6 +4292,7 @@ var RouterHistory = class {
   }
   async onConnected() {
     let { pathname, search } = window.location;
+    pathname = pathname.replaceAll(this.root, "/");
     let state = history.state;
     if (state && state.name && state.components) {
       this._updateProperty({
@@ -4224,7 +4306,11 @@ var RouterHistory = class {
     } else {
       let config = {};
       let path = null;
-      let found = await this._getConfigByPath(search ? `${pathname}${search}` : pathname);
+      let found = await this._redirectNotFound(
+        await this._getConfigByPath(
+          search ? `${pathname}${search}` : pathname
+        )
+      );
       if (found) {
         path = found.path;
         config = found.config;
@@ -4248,7 +4334,9 @@ var RouterHistory = class {
   }
   onPopState() {
     window.addEventListener("popstate", (event) => {
-      let { pathname, search } = this._parseUrl(`${location.pathname}${location.search}`);
+      let { pathname, search } = this._parseUrl(
+        `${location.pathname}${location.search}`
+      );
       this.goBack({ path: pathname, state: search });
     });
   }
@@ -4383,6 +4471,31 @@ var Page = class {
   }
 };
 
+// src/Blueprint.js
+var Blueprint = class {
+  constructor(name, template, overides) {
+    const config = {};
+    for (let key in overides) {
+      if (Object.prototype.hasOwnProperty.call(overides, key)) {
+        if (!["handlers", "subscribe"].includes(key)) {
+          config[key] = overides[key];
+        }
+      }
+    }
+    return new Component(name, template, {
+      ...config,
+      handlers: {
+        ...this.handlers ? this.handlers() : {},
+        ...overides && overides.handlers ? overides.handlers : {}
+      },
+      subscribe: {
+        ...this.subscribe ? this.subscribe() : {},
+        ...overides && overides.subscribe ? overides.subscribe : {}
+      }
+    });
+  }
+};
+
 // src/index.js
 var ElementStorage2 = MemCache_default.element;
 Custom_default();
@@ -4435,9 +4548,7 @@ var Cake = class {
     }
     await recurse(Object.keys(router.routes), async (path) => {
       const config = router.routes[path];
-      if (!["Function", "AsyncFunction"].includes(
-        config.constructor.name
-      )) {
+      if (!["Function", "AsyncFunction"].includes(config.constructor.name)) {
         if (config.components && Utils_default.is.isArray(config.components)) {
           await recurse(config.components, async (component) => {
             if (component.isPage) {
@@ -4508,14 +4619,17 @@ var Cake = class {
     Utils_default.array.each(this.pages, ({ key, value: page }) => {
       let common = page.$common;
       if (Utils_default.is.isObject(common)) {
-        Utils_default.array.each(common, ({ key: nameSpace, value: componentName }) => {
-          let component = this.components[componentName];
-          if (component) {
-            page.$common[nameSpace] = component;
-          } else {
-            delete page.$common[nameSpace];
+        Utils_default.array.each(
+          common,
+          ({ key: nameSpace, value: componentName }) => {
+            let component = this.components[componentName];
+            if (component) {
+              page.$common[nameSpace] = component;
+            } else {
+              delete page.$common[nameSpace];
+            }
           }
-        });
+        );
       } else {
         page.$common = {};
       }
@@ -4526,14 +4640,17 @@ var Cake = class {
     Utils_default.array.each(this.componentsCommon, ({ key, value: com }) => {
       const common = com.$common;
       if (Utils_default.is.isObject(common)) {
-        Utils_default.array.each(common, ({ key: nameSpace, value: componentName }) => {
-          let component = this.components[componentName];
-          if (component) {
-            com.$common[nameSpace] = component;
-          } else {
-            delete com.$common[nameSpace];
+        Utils_default.array.each(
+          common,
+          ({ key: nameSpace, value: componentName }) => {
+            let component = this.components[componentName];
+            if (component) {
+              com.$common[nameSpace] = component;
+            } else {
+              delete com.$common[nameSpace];
+            }
           }
-        });
+        );
       } else {
         com.$common = {};
       }
@@ -4554,6 +4671,7 @@ var Cake = class {
   }
 };
 export {
+  Blueprint,
   Component,
   ElementStorage2 as ElementStorage,
   Observer2 as Observer,

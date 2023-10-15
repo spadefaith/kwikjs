@@ -32,7 +32,6 @@ async function createElement(template) {
     return element;
 }
 
-
 function getAttributes(element) {
     let o = {};
     if (!element) {
@@ -79,11 +78,10 @@ export default class Component {
 
         this._setCustomData();
         this._setCustomCss();
-        
 
         this.root = options.root;
         this.items = false;
-        
+
         this.toggle = options.toggle;
         this.targets = {};
         this.animateOptions = options.animate;
@@ -123,14 +121,13 @@ export default class Component {
         this.scopeHistory = {};
         this.store = {};
 
-        this.$parent =  {};
-        this.$child =  options.child || {};
+        this.$parent = {};
+        this.$child = options.child || {};
         this.isPage = options.isPage || false;
         this.$common = options.common || {};
 
-
-        this.$storage = function(type = "session"){
-            if(!["session","local"].includes(type)){
+        this.$storage = function (type = "session") {
+            if (!["session", "local"].includes(type)) {
                 throw new Error("storage could be either, local or session");
             }
             return new Storage({
@@ -143,15 +140,16 @@ export default class Component {
 
         this.dynamicEvents = {};
     }
-    async _setCustomData(){
-        this.customData = this.options.data && Utils.is.isObject(this.options.data) || {};
+    async _setCustomData() {
+        this.customData =
+            (this.options.data && Utils.is.isObject(this.options.data)) || {};
     }
-    async _setCustomCss(){
-        this.customCss = this.options.css && Utils.is.isObject(this.options.css) || {};
+    async _setCustomCss() {
+        this.customCss =
+            (this.options.css && Utils.is.isObject(this.options.css)) || {};
     }
     async _create(opts) {
-
-        if(this._isCreated){
+        if (this._isCreated) {
             return;
         }
         let { handlers, subscribe, root } = opts;
@@ -170,14 +168,11 @@ export default class Component {
             (handlerName, handlerFunction) => {
                 return async (variable) => {
                     try {
-
                         let payload = await handlerFunction(variable);
-                        
-       
 
                         return this.fire(handlerName, {
-                            componentHandlerResponse:payload,
-                            event:variable
+                            componentHandlerResponse: payload,
+                            event: variable,
                         });
                     } catch (err) {
                         console.log(141, this.name, err);
@@ -203,7 +198,7 @@ export default class Component {
         try {
             await this.fetchTemplate;
 
-            if(this.template.isStatic){
+            if (this.template.isStatic) {
                 return;
             }
             await this._compile;
@@ -215,7 +210,7 @@ export default class Component {
                     );
                 }
             }
-            
+
             if (options.revokeque) {
                 //TODO why the this.wait.destroy is hanging when renderQue
                 this.await.destroy = Promise.resolve();
@@ -231,13 +226,13 @@ export default class Component {
             this.customData = options.data || this.customData;
             this.customCss = options.css || this.customCss;
 
-
-
             if (typeof root == "string") {
                 let sel = `${root}`;
                 root = document.querySelector(sel);
                 if (!root || !root.attributes) {
-                    throw new TypeError(`the ${sel} is not an instance of Element`);
+                    throw new TypeError(
+                        `the ${sel} is not an instance of Element`
+                    );
                 }
             }
 
@@ -249,7 +244,7 @@ export default class Component {
 
             if (!this.isReady) {
                 /**
-                 * this is where the target data-* is being parsed 
+                 * this is where the target data-* is being parsed
                  * and the final html is created;
                  */
                 await this._createElement();
@@ -272,28 +267,30 @@ export default class Component {
             payload.element = this.html;
             payload.events = this.dynamicEvents;
 
-            await this.fire.beforeConnected &&
+            (await this.fire.beforeConnected) &&
                 this.fire.beforeConnected(payload, true);
 
-
             /**call onInit hook */
-            this.onInit && await this.onInit();
-
+            this.onInit && (await this.onInit());
 
             /**replace the mustache before rendering those without data-* */
-            let el = this.$templating.createElement(this.customData, this.html.getElement());
-
+            let el = this.$templating.createElement(
+                this.customData,
+                this.html.getElement()
+            );
 
             /**recache the template after templating */
             this._recacheFromTemplating(el);
 
             /**replace the data-src by src */
             this.html.replaceDataSrc();
-    
 
             /**append the html if template type in the root */
-            (this.template.isTemplate || this.template.isString|| this.template.isUrl )&& await this.html.appendTo(root, cleaned);
-            
+            (this.template.isTemplate ||
+                this.template.isString ||
+                this.template.isUrl) &&
+                (await this.html.appendTo(root, cleaned));
+
             /**replace data-router with hash */
             await this._replaceRouter();
 
@@ -309,7 +306,6 @@ export default class Component {
             /**activate validator if form type */
             this._activateValidator();
 
-
             /**call isConnected hook */
             this.fire.isConnected &&
                 (await this.fire.isConnected(payload, true));
@@ -317,11 +313,8 @@ export default class Component {
             /**add event to element when rendered */
             await this._addEvent();
 
-
-
             /**reset if multiple type */
             multiple && (await this._hardResetMultiple());
-
 
             /**run auto scope */
             await this._autoScope();
@@ -329,16 +322,20 @@ export default class Component {
             console.log(281, this.name, err);
         }
     }
-    async _autoScope(){
-        if(this.$scopeData){
+    async _autoScope() {
+        if (this.$scopeData) {
             let keys = Object.keys(this.$scopeData);
-            await Utils.function.recurse(keys, (key, index)=>{
+            await Utils.function.recurse(keys, (key, index) => {
                 let val = this.$scopeData[key];
-                return this.$scope(key, {[key]:val});
+                if (Utils.is.isObject(val)) {
+                    return this.$scope(key, val);
+                } else {
+                    return this.$scope(key, { [key]: val });
+                }
             });
         }
     }
-    async _getDataOnRender(){
+    async _getDataOnRender() {
         if (
             this.options.onRender &&
             this.options.onRender.constructor &&
@@ -346,15 +343,13 @@ export default class Component {
                 this.options.onRender.constructor.name
             )
         ) {
-            this.onRenderConfig = await this.options.onRender.bind(this)(
-                this
-            );
+            this.onRenderConfig = await this.options.onRender.bind(this)(this);
 
             let data = this.onRenderConfig.data;
             let $scope = this.onRenderConfig.$scope;
             let css = this.onRenderConfig.css;
 
-            if($scope){
+            if ($scope) {
                 this.$scopeData = Object.assign(this.$scopeData, $scope);
             }
             if (data) {
@@ -379,14 +374,12 @@ export default class Component {
         await this._getDataOnRender();
 
         this.fire.beforeConnected &&
-        await this.fire.beforeConnected({}, true);
+            (await this.fire.beforeConnected({}, true));
 
         let el = this.html.getElement();
         el = this.$templating.createElement(this.customData, el);
         this.html = new Piece(el, this.name);
         this.html.replaceDataSrc();
-
-
 
         await this._replaceRouter();
         await this._findRef();
@@ -396,25 +389,22 @@ export default class Component {
 
         this._activateValidator();
 
-        this.fire.isConnected &&
-            (await this.fire.isConnected({}, true));
+        this.fire.isConnected && (await this.fire.isConnected({}, true));
 
         await this._addEvent();
-
-
     }
     async _renderDynamic() {}
 
     _updateRoute() {
-
-        if(!this.$router){
+        if (!this.$router) {
             console.log(this);
+
+            return;
         }
 
         let route = this.$router._getCurrentRoute();
 
-
-        if(!route){
+        if (!route) {
             return;
         }
 
@@ -468,7 +458,7 @@ export default class Component {
                 let val = routes[key];
                 let name = val.name;
 
-                accu[name] = {path:key,name:val.name};
+                accu[name] = { path: key, name: val.name };
 
                 return accu;
             }, {});
@@ -484,7 +474,7 @@ export default class Component {
                 // console.log(463,conf);
 
                 if (el) {
-                    let {path, name} = routes[bind] || {};
+                    let { path, name } = routes[bind] || {};
                     if (path) {
                         // el.setAttribute("href", `#!${_path}`);
                         el.setAttribute("href", path);
@@ -495,7 +485,7 @@ export default class Component {
                                 new CustomEvent("pathChanged", {
                                     detail: {
                                         path: path,
-                                        name:name,
+                                        name: name,
                                         component: this.name,
                                     },
                                 })
@@ -507,7 +497,7 @@ export default class Component {
         }
     }
     _bindHandlers(handlers) {
-        if(Utils.is.isObject(handlers)){
+        if (Utils.is.isObject(handlers)) {
             for (let key in handlers) {
                 if (Object.prototype.hasOwnProperty.call(handlers, key)) {
                     let fn = handlers[key];
@@ -516,12 +506,12 @@ export default class Component {
                     fn.original = originalName;
                     fn.binded = this.name;
                     handlers[originalName] = fn;
-    
+
                     this._initAsync(key);
                 }
             }
-        } else if (Utils.is.isArray(handlers)){
-            for (let i = 0; i < handlers.length; i++){
+        } else if (Utils.is.isArray(handlers)) {
+            for (let i = 0; i < handlers.length; i++) {
                 let fn = handlers[i];
                 let originalName = fn.name;
                 fn = fn.bind(this);
@@ -647,8 +637,8 @@ export default class Component {
             isTemplate: false,
             isUrl: false,
             isString: false,
-            has:false,
-            isID:false,
+            has: false,
+            isID: false,
         };
 
         const isUrl = Utils.is.isValidUrl(template);
@@ -658,38 +648,42 @@ export default class Component {
             if (template.substring(0, 1) == "#") {
                 this.template.element = document.querySelector(template);
                 this.template.isID = true;
-                if(this.template.element){
+                if (this.template.element) {
                     this.template.isTemplate = this.template.element
                         .toString()
                         .includes("Template");
-                    if(!this.template.isTemplate){
+                    if (!this.template.isTemplate) {
                         this.template.isStatic = true;
                     }
                 } else {
                     throw new Error(`${template} is not found in the DOM`);
                 }
-            } else if (isUrl){
-                this.fetchTemplate = fetch(isUrl.href).then(res=>res.text()).then(res=>{
-                    this.template.element = toElement(res, true);
+            } else if (isUrl) {
+                this.fetchTemplate = fetch(isUrl.href)
+                    .then((res) => res.text())
+                    .then((res) => {
+                        this.template.element = toElement(res, true);
 
-                    this.template.isID = false;
-                    if(this.template.element){
-                        this.template.isUrl = true;
-    
-                    } else {
-                        throw new Error(`${template} is not found in the DOM`);
-                    }
-                }).catch(err=>{
-                    console.log(`error fetching template of component ${this.name}, error - ${err.message}`);
-                });
-
-            } else if(Utils.is.isString(template)){
+                        this.template.isID = false;
+                        if (this.template.element) {
+                            this.template.isUrl = true;
+                        } else {
+                            throw new Error(
+                                `${template} is not found in the DOM`
+                            );
+                        }
+                    })
+                    .catch((err) => {
+                        console.log(
+                            `error fetching template of component ${this.name}, error - ${err.message}`
+                        );
+                    });
+            } else if (Utils.is.isString(template)) {
                 this.template.element = toElement(template, true);
 
                 this.template.isID = false;
-                if(this.template.element){
+                if (this.template.element) {
                     this.template.isString = true;
-
                 } else {
                     throw new Error(`${template} is not found in the DOM`);
                 }
@@ -704,8 +698,6 @@ export default class Component {
     }
 
     async _createElement() {
-
-
         let query = this.template.element;
         if (!query) {
             throw new Error(`the template for ${this.name} is not found with.`);
@@ -713,11 +705,11 @@ export default class Component {
         let element = null;
         if (this.template.isTemplate) {
             element = await createElement(query);
-        } else if(this.template.isStatic) {
+        } else if (this.template.isStatic) {
             element = query;
-        } else if (this.template.isUrl){
+        } else if (this.template.isUrl) {
             element = await createElement(query);
-        } else if (this.template.isString){
+        } else if (this.template.isString) {
             element = await createElement(query);
         }
         element.kwik_component = this.name;
@@ -727,41 +719,34 @@ export default class Component {
         await this._cacheTemplate(element);
     }
     async _hardReset() {
-
-        this.html && await this.html.remove(this.name);
+        this.html && (await this.html.remove(this.name));
         await this._eventStorage.destroy();
         this._reUseTemplate();
 
         return true;
     }
     async _hardResetMultiple() {
-
         await this._eventStorage.destroy();
         // this._reUseTemplate();
 
         return true;
     }
-    async _cloneTemplate(element){
+    async _cloneTemplate(element) {
         this.html = new Piece(element, this.name);
         this.original = this.html.cloneNode();
     }
-    async _cacheTemplate(html){
+    async _cacheTemplate(html) {
         await this._replaceSubTemplate();
-
-
-            
 
         this.template.cached = true;
     }
 
-    async _replaceSubTemplate(){
-
-        await this.$attrib.triggerSet("subtemplate",this);
+    async _replaceSubTemplate() {
+        await this.$attrib.triggerSet("subtemplate", this);
     }
 
-    async _recacheFromSubTemplate(html){
-        if(!this.template.recacheFromSubTemplate){
-            
+    async _recacheFromSubTemplate(html) {
+        if (!this.template.recacheFromSubTemplate) {
             this.html = new Piece(html, this.name);
             this.original = await html.cloneNode();
 
@@ -769,15 +754,15 @@ export default class Component {
         }
     }
 
-    async _recacheFromTemplating(html){
-        if(this.html){
+    async _recacheFromTemplating(html) {
+        if (this.html) {
             this.html = new Piece(html, this.name);
             this.template.recacheFromTemplating = true;
         }
     }
 
-    async _reUseTemplate(){
-        if(this.original){
+    async _reUseTemplate() {
+        if (this.original) {
             const cloned = await this.original.cloneNode();
             this.html = new Piece(cloned, this.name);
         }
@@ -823,7 +808,7 @@ export default class Component {
         }
 
         // console.log(599, this.html.el);
-       
+
         await this._hardReset(this.name);
         // console.log(600, this.html.el);
 
@@ -834,7 +819,7 @@ export default class Component {
         this._setCustomData();
         this._setCustomCss();
         this.$cache.destroy();
-        this.scopeHistory={};
+        this.scopeHistory = {};
         this.store = {};
         this.$scopeData = {};
         //clear dynamic events;
@@ -859,8 +844,6 @@ export default class Component {
         let component = this.name;
         let $this = this;
 
-
-
         function notify(
             id,
             event,
@@ -883,7 +866,6 @@ export default class Component {
         this.targets = (this.attribStorage.get("event") || []).filter(
             (item) => item._component == this.name
         );
-
 
         this.targets.forEach((cf) => {
             let { bind, cb, event, sel, _type, _component } = cf;
@@ -913,7 +895,6 @@ export default class Component {
 
             let store = cache.get("__cake__events");
 
-
             if (!store[cb] && el) {
                 Utils.element.addEventListener(
                     el,
@@ -933,7 +914,6 @@ export default class Component {
         });
     }
     async $scope(key, value) {
-
         if (!Utils.is.isString(key)) {
             throw new Error("key must be string");
         }
@@ -1000,10 +980,9 @@ export default class Component {
             });
         }
     }
-    _activateValidator(){
-        if(this.role == "form"){
-
-            this.$validator = Validator; 
+    _activateValidator() {
+        if (this.role == "form") {
+            this.$validator = Validator;
         }
     }
     _setParent(groupName) {
@@ -1014,15 +993,15 @@ export default class Component {
         this.attribStorageMultipleEvent = MemCache.object(
             `${this.groupName}/${this.name}/MultipleEvent`
         );
-        this.$attrib = new Attrib(this.attribStorage,this.attribStorageMultipleEvent, this._templateCompile);
+        this.$attrib = new Attrib(
+            this.attribStorage,
+            this.attribStorageMultipleEvent,
+            this._templateCompile
+        );
     }
     _setObserver(observer) {
-
-
         this.$observer = observer;
         this._compile = this._create(this.options);
-
-
 
         // if(this.name == "AdmissionTable"){
         //     // console.log(121,this.name,  _subsribes);
@@ -1049,10 +1028,9 @@ export default class Component {
         // this.$cache = cache;
     }
     _setToggler() {
-        if(!this.toggle){
+        if (!this.toggle) {
             return;
         }
-
 
         let togglers = (this.attribStorage.get("toggle") || []).filter(
             (item) => item._component == this.name
@@ -1066,7 +1044,6 @@ export default class Component {
 
         toggler.setHtml && toggler.setHtml(this.html);
         toggler.setAttr && toggler.setAttr(togglers);
-        
 
         // this.$toggler = new Toggle(this.toggle, this.html, togglers);
         this.$toggler = toggler.handler();
@@ -1077,38 +1054,35 @@ export default class Component {
     _setTemplateCompile(templateCompile) {
         this._templateCompile = templateCompile;
     }
-    async _resetDynamicEvents(resetHooks){
-        const isReset = resetHooks == undefined ? true: resetHooks;
+    async _resetDynamicEvents(resetHooks) {
+        const isReset = resetHooks == undefined ? true : resetHooks;
 
-        if(!isReset){
+        if (!isReset) {
             return true;
         }
-        await Object.keys(this.dynamicEvents).forEach(key=>{
+        await Object.keys(this.dynamicEvents).forEach((key) => {
             const isDestroy = key == "destroy";
-            if(!isDestroy){
+            if (!isDestroy) {
                 delete this.dynamicEvents[key];
             }
         });
     }
-    _setDynamicEvents(events){
-        if(!events){
+    _setDynamicEvents(events) {
+        if (!events) {
             return;
         }
 
         let isObject = Utils.is.isObject(events);
-        if(isObject){
-            Utils.array.each(events,({key, value})=>{
+        if (isObject) {
+            Utils.array.each(events, ({ key, value }) => {
                 // const event = `${this.name}-${key}`;
-                if(Utils.is.isArray(value)){
+                if (Utils.is.isArray(value)) {
                     throw new Error("events should have one handler");
-                } else if(Utils.is.isFunction(value)){
-                    this.dynamicEvents[key] = {event:key, handler:value};
+                } else if (Utils.is.isFunction(value)) {
+                    this.dynamicEvents[key] = { event: key, handler: value };
                 }
             });
-
-
         }
-
     }
     on(event, handler) {
         this._bindHandlers({
@@ -1143,25 +1117,27 @@ export default class Component {
             subscribeTo: this.subscribeTo.bind(this),
         };
     }
-    clone(name, template, opts = {}){
+    clone(name, template, opts = {}) {
         let cloned = {};
 
-        for(let key in this.options){
-            if(Object.prototype.hasOwnProperty.call(this.options, key)){
-
-
-                cloned[key] = opts[key]? (cloned[key] = opts[key]) : (cloned[key] = this.options[key]); 
-
+        for (let key in this.options) {
+            if (Object.prototype.hasOwnProperty.call(this.options, key)) {
+                cloned[key] = opts[key]
+                    ? (cloned[key] = opts[key])
+                    : (cloned[key] = this.options[key]);
             }
         }
 
         // console.log(1088,cloned);
 
-        return new Component(name, template || this.htmlTemplateSelector, cloned);
+        return new Component(
+            name,
+            template || this.htmlTemplateSelector,
+            cloned
+        );
     }
 
-
-    _setPage(page){
+    _setPage(page) {
         this.$parent = page;
     }
 }
