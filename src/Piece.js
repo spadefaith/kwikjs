@@ -28,7 +28,7 @@ function getElementsByDataset() {
     let args = arguments[1];
     let isLog = arguments[2];
 
-    // console.log(29, element);
+    // isLog && console.log(29, element);
     // console.trace();
 
     Utils.array.each(args, function (arg, index) {
@@ -44,7 +44,7 @@ function getElementsByDataset() {
             isLog
         );
 
-        // isLog && console.log(40, els, arg);
+        // isLog && console.log(40, element, els, arg);
 
         Utils.array.each(els, function (el, index) {
             o[arg].push(el);
@@ -60,15 +60,15 @@ function applyCss(element, styles) {
      * styles = {
      *      color:red
      * }
-     * 
+     *
      * or
-     * 
+     *
      * styles = {
      *      .nav-item:{
      *          color:red
      *      }
      * }
-     * 
+     *
      */
     Utils.array.each(styles, function (css, index) {
         let { key, value } = css;
@@ -82,12 +82,11 @@ function applyCss(element, styles) {
                     selector
                 );
 
-                if(target){
+                if (target) {
                     target.style[key] = value;
                 }
 
                 target = null;
-
             });
         } else {
             element.style[key] = value;
@@ -103,10 +102,8 @@ async function appendTo(root, element, cleaned) {
 
     cleaned && (root.innerHTML = "");
 
-
     // root.appendChild(cloned);
     root.appendChild(element);
-   
 }
 
 function querySelectorAllIncluded(element, selector, attr, val) {
@@ -121,7 +118,6 @@ export default class Piece {
         //     console.log(104, this.componentName,this.el);
         //     console.trace();
         // }
-        
     }
     toArray() {
         return Utils.element.toArray(this._el);
@@ -199,14 +195,14 @@ export default class Piece {
     getElementsByDataset() {
         return getElementsByDataset(this.el, arguments);
     }
-    addClass(cl){
-        this.el && cl.split(" ").forEach(cl=>this.el.classList.add(cl));
+    addClass(cl) {
+        this.el && cl.split(" ").forEach((cl) => this.el.classList.add(cl));
     }
-    removeClass(cl){
-        this.el && cl.split(" ").forEach(cl=>this.el.classList.remove(cl));
+    removeClass(cl) {
+        this.el && cl.split(" ").forEach((cl) => this.el.classList.remove(cl));
     }
-    toggleClass(cl){
-        this.el && cl.split(" ").forEach(cl=>this.el.classList.toggle(cl));
+    toggleClass(cl) {
+        this.el && cl.split(" ").forEach((cl) => this.el.classList.toggle(cl));
     }
 }
 

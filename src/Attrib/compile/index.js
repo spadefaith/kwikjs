@@ -15,41 +15,60 @@ import compileRef from "./CompileRef";
 import compileSubTemplate from "./CompileSubTemplate";
 import compileValidator from "./CompileValidator";
 
-async function compile(el, component, isStatic = false, storage,multipleEventStorage, keys,isReInject) {
+async function compile(
+    el,
+    component,
+    isStatic = false,
+    storage,
+    multipleEventStorage,
+    keys,
+    isReInject
+) {
     const templateSelector = "[data-template]";
     let map = {
         [templateSelector]: {
-            handler:compileTemplate, name:"template"
+            handler: compileTemplate,
+            name: "template",
         },
         ":not([data-template]) > [data-bind]": {
-            handler:compileBind, name:"bind"
+            handler: compileBind,
+            name: "bind",
         }, //logical
         ":not([data-template]) > [data-attr]": {
-            handler:compileAttr, name:"attr"
+            handler: compileAttr,
+            name: "attr",
         }, //logical
         ":not([data-template]) > [data-class]": {
-            handler:compileClass, name:"class"
+            handler: compileClass,
+            name: "class",
         }, //logical
         ":not([data-template]) > [data-toggle]": {
-            handler:compileToggle, name:"toggle"
+            handler: compileToggle,
+            name: "toggle",
         }, //logical
         ":not([data-template]) > [data-event]": {
-            handler:compileEvent, name:"event"
+            handler: compileEvent,
+            name: "event",
         },
         ":not([data-template]) > [data-route]": {
-            handler:compileRoute, name:"route"
+            handler: compileRoute,
+            name: "route",
         },
         ":not([data-template]) > [data-container]": {
-            handler:compileContainer, name:"container"
+            handler: compileContainer,
+            name: "container",
         },
         ":not([data-template]) > [data-ref]": {
-            handler:compileRef, name:"ref"
+            handler: compileRef,
+            name: "ref",
         },
         ":not([data-template]) > [data-subtemplate]": {
-            handler:compileSubTemplate, name:"subtemplate"
+            handler: compileSubTemplate,
+            name: "subtemplate",
         },
         ":not([data-template]) > [data-validator]": {
-            handler:compileValidator, name:"validator"
+            handler: compileValidator,
+            name: "validator",
         },
         /*
                 - will not supported
@@ -75,22 +94,15 @@ async function compile(el, component, isStatic = false, storage,multipleEventSto
             */
     };
 
-    
-
-    if(keys){
-        map = Object.keys(map).reduce((accu, key)=>{
+    if (keys) {
+        map = Object.keys(map).reduce((accu, key) => {
             let val = map[key];
-            if(keys.includes(val.name)){
+            if (keys.includes(val.name)) {
                 accu[key] = val;
             }
             return accu;
-        },{});
+        }, {});
     }
-
-    // console.log(80,keys, map);
-
-    
-
 
     let query = await getElementsByDataset(
         el,
@@ -101,12 +113,7 @@ async function compile(el, component, isStatic = false, storage,multipleEventSto
         // "for",
         // "for-update",
         // "switch",
-
-        // component == "form"
     );
-
-
-    
 
     let r = [];
 
@@ -128,23 +135,25 @@ async function compile(el, component, isStatic = false, storage,multipleEventSto
                 // }
 
                 // component == "static_form" && console.log(73, templateSelector == q && isReInject);
-                if(templateSelector == q && isReInject){
+                if (templateSelector == q && isReInject) {
                     continue;
                 }
                 // component == "static_form" && console.log(77, templateSelector == q && isReInject);
 
                 r.push(
-                    map[q].handler.apply(this, [
-                        query[q],
-                        component,
-                        isStatic,
-                        el,
-                        storage,
-                        prev,
-                        multipleEventStorage
-                    ]).then(res=>{
-                        return map[q].name;
-                    })
+                    map[q].handler
+                        .apply(this, [
+                            query[q],
+                            component,
+                            isStatic,
+                            el,
+                            storage,
+                            prev,
+                            multipleEventStorage,
+                        ])
+                        .then((res) => {
+                            return map[q].name;
+                        })
                 );
             }
         }
@@ -152,7 +161,9 @@ async function compile(el, component, isStatic = false, storage,multipleEventSto
 
     // component == "static_form" && console.log(80,r);
 
-    return Promise.all(r.length ? r : [r]);
+    const ret = await Promise.all(r.length ? r : [r]);
+
+    return ret;
 }
 
 export default compile;

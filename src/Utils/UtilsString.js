@@ -33,7 +33,7 @@ function toHyphen(string) {
     return ss;
 }
 
-function toProper(string) {
+function toProper(string, all) {
     const name = `to-proper_${string}`;
     const containerName = "toProper";
     const cached = MemCache.object(containerName).get(name);
@@ -41,11 +41,29 @@ function toProper(string) {
     if (cached) {
         return cached;
     }
+    let proper = "";
 
-    let first = string.substring(0, 1);
-    let rest = string.slice(1).toLowerCase();
-    let proper = `${first.toUpperCase()}${rest}`;
+    if (all) {
+        const splitted = String(string).split(" ");
 
+        proper = splitted.reduce((accu, string, index) => {
+            let first = string.substring(0, 1);
+            let rest = string.slice(1).toLowerCase();
+            let proper = `${first.toUpperCase()}${rest}`;
+
+            if (index == splitted.length - 1) {
+                accu += proper;
+            } else {
+                accu += `${proper} `;
+            }
+
+            return accu;
+        }, "");
+    } else {
+        let first = string.substring(0, 1);
+        let rest = string.slice(1).toLowerCase();
+        proper = `${first.toUpperCase()}${rest}`;
+    }
     MemCache.object(containerName).set(name, proper);
 
     return proper;
@@ -118,7 +136,7 @@ function sanitize(data) {
 
 function uuid() {
     const uint32 = window.crypto.getRandomValues(new Uint32Array(1))[0];
-    return `ck-${uint32.toString(16)}`;
+    return `${uint32.toString(16)}`;
 }
 
 function toLogical(a, ops, b) {

@@ -35,7 +35,7 @@ function querySelectorIncluded(element, selector, attr, val) {
     // console.trace();
     if (!attr && !val) {
         let qu = element.closest(selector);
-        query= null;
+        query = null;
         return qu || null;
     } else if (!!attr && !!val) {
         return element.getAttribute(attr) == val ? element : null;
@@ -46,32 +46,52 @@ function querySelectorIncluded(element, selector, attr, val) {
 
 function querySelectorAllIncluded(element, selector, attr, val, isLog) {
     let q = null;
+    let root = null;
+    let hasParent = false;
+    if (element) {
+        root = element.parentElement;
+        hasParent = true;
+    }
+
+    let querySelector = null;
+
+    if (selector) {
+        querySelector = selector;
+    } else if (attr && val) {
+        querySelector = `[${attr}=${val}]`;
+    } else if (attr && !val) {
+        querySelector = `[${attr}]`;
+    }
+    if (!querySelector) {
+        return null;
+    }
+
     try {
-        q = element.querySelectorAll(selector);
+        q = (root || element).querySelectorAll(querySelector);
 
         q && (q = toArray(q));
     } catch (err) {
         q = [];
     }
 
-
-    if (selector) {
-        q = toArray(element.querySelectorAll(selector));
-        let s = element.closest(selector);
-        s && q.unshift(s);
-    } else if (attr && val) {
-        q = toArray(element.querySelectorAll(`[${attr}=${val}]`));
-        if (element.dataset[attr] == val) {
-            q.push(element);
+    if (!hasParent) {
+        if (selector) {
+            const cloned = element.cloneNode();
+            const temp = document.createElement("html");
+            temp.append(cloned);
+            const has = temp.querySelector(selector);
+            if (has) {
+                q.push(element);
+            }
+        } else if (attr && val) {
+            if (element.dataset[attr] == val) {
+                q.push(element);
+            }
+        } else if (attr && !val) {
+            if (element.dataset[attr]) {
+                q.push(element);
+            }
         }
-    } else if (attr && !val) {
-        q = toArray(element.querySelectorAll(`[${attr}]`));
-        if (element.dataset[attr]) {
-            q.push(element);
-        }
-    } else if (!attr && !val) {
-        let qu = element.closest(selector);
-        qu == element && q.push(qu);
     }
 
     return q;
@@ -93,10 +113,10 @@ function classNameTogglerByDataName(elements, dataName, activeClass) {
 }
 
 function replaceDataSrc(root) {
-    if(!root){
+    if (!root) {
         throw new Error("data-src is not found");
     }
-    setTimeout(()=>{
+    setTimeout(() => {
         let srcs = querySelectorAllIncluded(root, "[data-src]", null);
 
         for (let s = 0; s < srcs.length; s++) {
@@ -107,7 +127,7 @@ function replaceDataSrc(root) {
             }
         }
         srcs = null;
-    },1000);
+    }, 1000);
 }
 function unRequired(root) {
     let srcs = root.querySelectorAll("[required]");

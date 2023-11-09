@@ -125,6 +125,7 @@ export default class Component {
         this.$child = options.child || {};
         this.isPage = options.isPage || false;
         this.$common = options.common || {};
+        this.pageReference = null;
 
         this.$storage = function (type = "session") {
             if (!["session", "local"].includes(type)) {
@@ -418,7 +419,6 @@ export default class Component {
             this.$controller = route.controller;
         }
     }
-
     _findContainer() {
         let containers = this.attribStorage.get("container") || [];
 
@@ -714,11 +714,54 @@ export default class Component {
         }
         element.kwik_component = this.name;
         element.cake_component = this.name;
+
+        if (this.isPage) {
+            element.dataset.page = this.name;
+        } else {
+            element.dataset.component = this.name;
+        }
+
         this._cloneTemplate(element);
         await this._parseHTML(this.html, this.template.isStatic);
+
         await this._cacheTemplate(element);
     }
     async _hardReset() {
+        if (this.isPage) {
+            //TODO - auto destroy the child if the page
+            // const childElement = await this.html.querySelectorAll(
+            //     "[data-component]"
+            // );
+            // const childComponents = childElement.map(
+            //     (item) => item.dataset.component
+            // );
+            // console.log(730, childComponents);
+            // childElement.forEach((el) => el.remove && el.remove());
+            // await Promise.all(
+            //     Object.keys(this.$child).map((key) => {
+            //         const component = this.$child[key];
+            //         if (component?.fire?.destroy) {
+            //             return component.fire.destroy();
+            //         } else {
+            //             return Promise.resolve();
+            //         }
+            //     })
+            // );
+            // await Promise.all(
+            //     Object.keys(this.$common).map((key) => {
+            //         const component = this.$common[key];
+            //         if (component?.fire?.destroy) {
+            //             return component.fire.destroy();
+            //         } else {
+            //             return Promise.resolve();
+            //         }
+            //     })
+            // );
+            // Utils.array.each(this.$child, (key, component, index) => {
+            //     component.fire.destroy();
+            // });
+        }
+
         this.html && (await this.html.remove(this.name));
         await this._eventStorage.destroy();
         this._reUseTemplate();
@@ -843,7 +886,7 @@ export default class Component {
     _addEvent() {
         let component = this.name;
         let $this = this;
-
+        let validEvent = ["change", "input", "submit", "click"];
         function notify(
             id,
             event,
@@ -867,10 +910,21 @@ export default class Component {
             (item) => item._component == this.name
         );
 
-        this.targets.forEach((cf) => {
+        this.name == "form_controls" && console.log(913, this.targets);
+
+        JSON.parse(JSON.stringify(this.targets)).forEach((cf) => {
             let { bind, cb, event, sel, _type, _component } = cf;
+            // console.log(914, this.name, sel, event);
+
+            // if (!validEvent.includes(event)) {
+            //     return;
+            // }
 
             let el = this.html.querySelectorIncluded(`[data-event=${sel}]`);
+
+            if (!el) {
+                return;
+            }
 
             let _event = event;
 
@@ -895,7 +949,12 @@ export default class Component {
 
             let store = cache.get("__cake__events");
 
-            if (!store[cb] && el) {
+            // console.log(945, _event);
+
+            // let test = el && (!store[cb] || validEvent.includes(store[cb]));
+            let test = el && !store[cb];
+
+            if (test) {
                 Utils.element.addEventListener(
                     el,
                     _event,

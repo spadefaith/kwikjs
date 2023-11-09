@@ -18,6 +18,8 @@ function _static(component, qs, isStatic) {
 }
 
 function loop(attr, els, component, isStatic, cb) {
+    // const test = component == "UserPageModalForm";
+
     if (!els.length) {
         return false;
     }
@@ -30,7 +32,8 @@ function loop(attr, els, component, isStatic, cb) {
 
     for (let i = 0; i < els.length; i++) {
         let el = els[i];
-        let id = Utils.string.uuid();
+        let id = `ck-${Utils.string.uuid()}`;
+        // test && console.log(36, id);
         let target, gr;
         if (attr.includes(",")) {
             let attrs = attr.split(",");

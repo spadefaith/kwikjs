@@ -17,9 +17,8 @@ async function set(
     component,
     storage,
     templateCompile,
-    actions 
+    actions
 ) {
-
     const isTarget = component.name == "static_form";
 
     let dynamicActions = [
@@ -34,9 +33,10 @@ async function set(
 
     // console.log(32,component,prop, actions);
 
-
-    if(actions){
-        dynamicActions = actions.filter(item=>dynamicActions.includes(item));
+    if (actions) {
+        dynamicActions = actions.filter((item) =>
+            dynamicActions.includes(item)
+        );
     }
 
     // console.log(37,dynamicActions);
@@ -49,16 +49,13 @@ async function set(
 
     let configs = storage.get();
 
-
-    
-
     for (let a = 0; a < dynamicActions.length; a++) {
         const action = dynamicActions[a];
         const vals = configs[action];
 
         // console.log(56, vals);
         // isTarget && action == "template" && console.log(prop,configs);
-        
+
         if (vals) {
             for (let v = 0; v < vals.length; v++) {
                 const val = vals[v];
@@ -69,7 +66,6 @@ async function set(
             }
         }
     }
-
 
     return await Promise.all(
         Object.keys(hits).map((key) => {
@@ -100,13 +96,29 @@ async function set(
     );
 }
 
-async function inject(el, component, isStatic = false, storage,multipleEventStorage, keys,isReInject) {
+async function inject(
+    el,
+    component,
+    isStatic = false,
+    storage,
+    multipleEventStorage,
+    keys,
+    isReInject
+) {
     el = el.el || el;
-    return await compile(el, component, isStatic, storage,multipleEventStorage, keys,isReInject);
+    return await compile(
+        el,
+        component,
+        isStatic,
+        storage,
+        multipleEventStorage,
+        keys,
+        isReInject
+    );
 }
 
 export default class Attrib {
-    constructor(storage,multipleEventStorage, templateCompile) {
+    constructor(storage, multipleEventStorage, templateCompile) {
         // console.log(89, storage, templateCompile);
 
         this.storage = storage;
@@ -133,28 +145,43 @@ export default class Attrib {
     }
     async inject(el, component, isStatic = false, isReInject = false) {
         let compiled = {};
-
-        if(!isReInject && this.cache[component]){
-            compiled = await inject(el, component, isStatic, this.storage,this.multipleEventStorage, this.cache[component],isReInject);
+        if (!isReInject && this.cache[component]) {
+            compiled = await inject(
+                el,
+                component,
+                isStatic,
+                this.storage,
+                this.multipleEventStorage,
+                this.cache[component],
+                isReInject
+            );
         } else {
-            compiled = await inject(el, component, isStatic, this.storage,this.multipleEventStorage, undefined, isReInject);
+            compiled = await inject(
+                el,
+                component,
+                isStatic,
+                this.storage,
+                this.multipleEventStorage,
+                undefined,
+                isReInject
+            );
         }
 
         // console.log(126,component, this.cache[component]);
 
-        if(!this.cache[component] && !isReInject){
+        if (!this.cache[component] && !isReInject) {
             this.cache[component] = compiled;
         }
 
         return compiled;
     }
-    async triggerSet(key, component){
+    async triggerSet(key, component) {
         let { name, html } = component;
 
         // console.log(139,key, name, html);
 
         if (key == "subtemplate") {
-            return HandlerSubTemplate(name,html,this.storage);
+            return HandlerSubTemplate(name, html, this.storage);
         }
     }
 }

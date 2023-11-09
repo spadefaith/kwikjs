@@ -12,7 +12,9 @@ async function compileEvent(
     let compileName = "event";
 
     // component == "TriggerList" && console.log(13,"compiled", elModels);
-
+    // const test = component == "UserPageModalForm";
+    // const test = component == "form_controls";
+    // test && console.log(17, elModels);
     await loop(
         compileName,
         elModels,
@@ -22,10 +24,14 @@ async function compileEvent(
             let splitted = gr;
 
             let hasMultipleEvents = false;
-            if(splitted.length > 1){
+            if (splitted.length > 1) {
                 multipleEventStorage.set(id, true);
                 hasMultipleEvents = true;
             }
+
+            // test && console.log(30, hasMultipleEvents);
+
+            // test && console.log(31, el, id, target, gr, index);
 
             const events = [];
             const callbacks = [];
@@ -37,8 +43,7 @@ async function compileEvent(
                 event = event.trim();
                 cb = cb ? cb.trim() : cb;
 
-
-                if(hasMultipleEvents){
+                if (hasMultipleEvents) {
                     events.push(event);
                     callbacks.push(cb);
                 }
@@ -46,12 +51,12 @@ async function compileEvent(
                 const prevConf = prev[event];
                 let evs = [];
                 let cbs = [];
-                if(prevConf && prevConf.isMultiple){
+                if (prevConf && prevConf.isMultiple) {
                     evs = prevConf.events;
                     cbs = prevConf.callbacks;
 
                     multipleEventStorage.destroy();
-                } else if(prevConf && !prevConf.isMultiple){
+                } else if (prevConf && !prevConf.isMultiple) {
                     evs = [prevConf.event];
                     cbs = [prevConf.cb];
                 } else {
@@ -59,7 +64,7 @@ async function compileEvent(
                     cbs = [cb];
                 }
 
-                evs.forEach((event, index)=>{
+                evs.forEach((event, index) => {
                     let cb = cbs[index];
 
                     const conf = {
@@ -70,16 +75,16 @@ async function compileEvent(
                         bind: cb,
                         cb,
                     };
-    
+
                     storage.push(compileName, conf);
                     storage.set(id, conf);
-
                 });
 
                 el.dataset[compileName] = id;
+                // console.log(82, component, event, id);
             }
 
-            if(hasMultipleEvents){
+            if (hasMultipleEvents) {
                 const conf = storage.get(id);
                 conf.events = events;
                 conf.callbacks = callbacks;

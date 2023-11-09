@@ -439,29 +439,47 @@ function querySelectorIncluded(element, selector, attr, val) {
 }
 function querySelectorAllIncluded(element, selector, attr, val, isLog) {
   let q = null;
+  let root = null;
+  let hasParent = false;
+  if (element) {
+    root = element.parentElement;
+    hasParent = true;
+  }
+  let querySelector = null;
+  if (selector) {
+    querySelector = selector;
+  } else if (attr && val) {
+    querySelector = `[${attr}=${val}]`;
+  } else if (attr && !val) {
+    querySelector = `[${attr}]`;
+  }
+  if (!querySelector) {
+    return null;
+  }
   try {
-    q = element.querySelectorAll(selector);
+    q = (root || element).querySelectorAll(querySelector);
     q && (q = toArray(q));
   } catch (err) {
     q = [];
   }
-  if (selector) {
-    q = toArray(element.querySelectorAll(selector));
-    let s = element.closest(selector);
-    s && q.unshift(s);
-  } else if (attr && val) {
-    q = toArray(element.querySelectorAll(`[${attr}=${val}]`));
-    if (element.dataset[attr] == val) {
-      q.push(element);
+  if (!hasParent) {
+    if (selector) {
+      const cloned = element.cloneNode();
+      const temp = document.createElement("html");
+      temp.append(cloned);
+      const has = temp.querySelector(selector);
+      if (has) {
+        q.push(element);
+      }
+    } else if (attr && val) {
+      if (element.dataset[attr] == val) {
+        q.push(element);
+      }
+    } else if (attr && !val) {
+      if (element.dataset[attr]) {
+        q.push(element);
+      }
     }
-  } else if (attr && !val) {
-    q = toArray(element.querySelectorAll(`[${attr}]`));
-    if (element.dataset[attr]) {
-      q.push(element);
-    }
-  } else if (!attr && !val) {
-    let qu = element.closest(selector);
-    qu == element && q.push(qu);
   }
   return q;
 }
@@ -553,16 +571,32 @@ function toHyphen(string) {
   MemCache_default.object(containerName).set(name, ss);
   return ss;
 }
-function toProper(string) {
+function toProper(string, all) {
   const name = `to-proper_${string}`;
   const containerName = "toProper";
   const cached = MemCache_default.object(containerName).get(name);
   if (cached) {
     return cached;
   }
-  let first = string.substring(0, 1);
-  let rest = string.slice(1).toLowerCase();
-  let proper = `${first.toUpperCase()}${rest}`;
+  let proper = "";
+  if (all) {
+    const splitted = String(string).split(" ");
+    proper = splitted.reduce((accu, string2, index) => {
+      let first = string2.substring(0, 1);
+      let rest = string2.slice(1).toLowerCase();
+      let proper2 = `${first.toUpperCase()}${rest}`;
+      if (index == splitted.length - 1) {
+        accu += proper2;
+      } else {
+        accu += `${proper2} `;
+      }
+      return accu;
+    }, "");
+  } else {
+    let first = string.substring(0, 1);
+    let rest = string.slice(1).toLowerCase();
+    proper = `${first.toUpperCase()}${rest}`;
+  }
   MemCache_default.object(containerName).set(name, proper);
   return proper;
 }
@@ -621,7 +655,7 @@ function sanitize(data) {
 }
 function uuid() {
   const uint32 = window.crypto.getRandomValues(new Uint32Array(1))[0];
-  return `ck-${uint32.toString(16)}`;
+  return `${uint32.toString(16)}`;
 }
 function toLogical(a, ops, b) {
   try {
@@ -1246,6 +1280,7 @@ function _static(component, qs, isStatic) {
   return els;
 }
 function loop(attr, els, component, isStatic, cb) {
+  const test = component == "UserPageModalForm";
   if (!els.length) {
     return false;
   }
@@ -1255,7 +1290,8 @@ function loop(attr, els, component, isStatic, cb) {
   }
   for (let i = 0; i < els.length; i++) {
     let el = els[i];
-    let id = Utils_default.string.uuid();
+    let id = `ckk-${Utils_default.string.uuid()}`;
+    test && console.log(36, id);
     let target, gr;
     if (attr.includes(",")) {
       let attrs = attr.split(",");
@@ -1756,15 +1792,19 @@ async function compile(el, component, isStatic = false, storage2, multipleEventS
       return accu;
     }, {});
   }
+  let test = component == "form_controls";
+  if (test) {
+    console.log(109, el);
+  }
   let query = await getElementsByDataset(
     el,
-    Object.keys(map2)
+    Object.keys(map2),
     // "animate",
     // "if",
     // "for",
     // "for-update",
     // "switch",
-    // component == "form"
+    test
   );
   let r = [];
   let prev = storage2.get();
@@ -1791,7 +1831,8 @@ async function compile(el, component, isStatic = false, storage2, multipleEventS
       }
     }
   }
-  return Promise.all(r.length ? r : [r]);
+  const ret = await Promise.all(r.length ? r : [r]);
+  return ret;
 }
 var compile_default = compile;
 
@@ -2221,7 +2262,9 @@ async function set(prop, newValue, prevValue, component, storage2, templateCompi
     "route"
   ];
   if (actions) {
-    dynamicActions = actions.filter((item) => dynamicActions.includes(item));
+    dynamicActions = actions.filter(
+      (item) => dynamicActions.includes(item)
+    );
   }
   let { name, html } = component;
   let val = JSON.parse(JSON.stringify(newValue));
@@ -2266,7 +2309,15 @@ async function set(prop, newValue, prevValue, component, storage2, templateCompi
 }
 async function inject(el, component, isStatic = false, storage2, multipleEventStorage, keys, isReInject) {
   el = el.el || el;
-  return await compile_default(el, component, isStatic, storage2, multipleEventStorage, keys, isReInject);
+  return await compile_default(
+    el,
+    component,
+    isStatic,
+    storage2,
+    multipleEventStorage,
+    keys,
+    isReInject
+  );
 }
 var Attrib = class {
   constructor(storage2, multipleEventStorage, templateCompile) {
@@ -2290,9 +2341,25 @@ var Attrib = class {
   async inject(el, component, isStatic = false, isReInject = false) {
     let compiled = {};
     if (!isReInject && this.cache[component]) {
-      compiled = await inject(el, component, isStatic, this.storage, this.multipleEventStorage, this.cache[component], isReInject);
+      compiled = await inject(
+        el,
+        component,
+        isStatic,
+        this.storage,
+        this.multipleEventStorage,
+        this.cache[component],
+        isReInject
+      );
     } else {
-      compiled = await inject(el, component, isStatic, this.storage, this.multipleEventStorage, void 0, isReInject);
+      compiled = await inject(
+        el,
+        component,
+        isStatic,
+        this.storage,
+        this.multipleEventStorage,
+        void 0,
+        isReInject
+      );
     }
     if (!this.cache[component] && !isReInject) {
       this.cache[component] = compiled;
@@ -3150,6 +3217,7 @@ var Component = class {
     this.$child = options.child || {};
     this.isPage = options.isPage || false;
     this.$common = options.common || {};
+    this.pageReference = null;
     this.$storage = function(type = "session") {
       if (!["session", "local"].includes(type)) {
         throw new Error("storage could be either, local or session");
@@ -3573,11 +3641,18 @@ var Component = class {
     }
     element.kwik_component = this.name;
     element.cake_component = this.name;
+    if (this.isPage) {
+      element.dataset.page = this.name;
+    } else {
+      element.dataset.component = this.name;
+    }
     this._cloneTemplate(element);
     await this._parseHTML(this.html, this.template.isStatic);
     await this._cacheTemplate(element);
   }
   async _hardReset() {
+    if (this.isPage) {
+    }
     this.html && await this.html.remove(this.name);
     await this._eventStorage.destroy();
     this._reUseTemplate();
@@ -3680,6 +3755,7 @@ var Component = class {
   _addEvent() {
     let component = this.name;
     let $this = this;
+    let validEvent = ["change", "input", "submit", "click"];
     function notify(id, event, component2, isPreventDefault, isStopPropagation) {
       return function(e) {
         if (!isPreventDefault) {
@@ -3694,9 +3770,13 @@ var Component = class {
     this.targets = (this.attribStorage.get("event") || []).filter(
       (item) => item._component == this.name
     );
-    this.targets.forEach((cf) => {
+    this.name == "form_controls" && console.log(913, this.targets);
+    JSON.parse(JSON.stringify(this.targets)).forEach((cf) => {
       let { bind, cb, event, sel, _type, _component } = cf;
       let el = this.html.querySelectorIncluded(`[data-event=${sel}]`);
+      if (!el) {
+        return;
+      }
       let _event = event;
       let place = event.substring(0, 2);
       let isPreventDefault = place.includes("~");
@@ -3714,7 +3794,8 @@ var Component = class {
         cache.set("__cake__events", {});
       }
       let store = cache.get("__cake__events");
-      if (!store[cb] && el) {
+      let test = el && !store[cb];
+      if (test) {
         Utils_default.element.addEventListener(
           el,
           _event,
